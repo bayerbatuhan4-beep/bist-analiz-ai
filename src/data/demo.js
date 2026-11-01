@@ -837,6 +837,94 @@ export const DEMO_STOCKS = {
   }
 };
 
+/**
+ * Deterministic pseudo-random number generator (Mulberry32)
+ * Ensures repeatable, deterministic candle data on every load without external dependencies.
+ */
+function createSeededRandom(seed) {
+  let s = seed >>> 0;
+  return function() {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Generate deterministic demo OHLC and volume candles for a stock
+ */
+export function generateDemoCandles(symbol, basePrice, timeframe) {
+  let seed = Math.round(basePrice * 100);
+  for (let i = 0; i < symbol.length; i++) {
+    seed = (seed * 31 + symbol.charCodeAt(i)) >>> 0;
+  }
+  if (timeframe === '1H') seed = (seed + 1013) >>> 0;
+  if (timeframe === '1A') seed = (seed + 2027) >>> 0;
+
+  const rand = createSeededRandom(seed);
+  let count = 12;
+  let labels = ['10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '15:00', '16:00', '17:00'];
+  let volatility = 0.008;
+
+  if (timeframe === '1H') {
+    count = 10;
+    labels = ['Pzt ÖÖ', 'Pzt ÖS', 'Sal ÖÖ', 'Sal ÖS', 'Çar ÖÖ', 'Çar ÖS', 'Per ÖÖ', 'Per ÖS', 'Cum ÖÖ', 'Cum ÖS'];
+    volatility = 0.012;
+  } else if (timeframe === '1A') {
+    count = 15;
+    labels = ['1. Gün', '3. Gün', '5. Gün', '7. Gün', '9. Gün', '11. Gün', '13. Gün', '15. Gün', '17. Gün', '19. Gün', '21. Gün', '23. Gün', '25. Gün', '28. Gün', '30. Gün'];
+    volatility = 0.016;
+  }
+
+  const volBase = Math.round(Math.max(50000, basePrice * 15000));
+  const returns = [];
+  for (let i = 0; i < count; i++) {
+    returns.push((rand() - 0.49) * volatility);
+  }
+
+  // Work backwards so the final close is basePrice
+  const closes = new Array(count);
+  closes[count - 1] = basePrice;
+  for (let i = count - 2; i >= 0; i--) {
+    closes[i] = closes[i + 1] / (1 + returns[i + 1]);
+  }
+
+  const candles = [];
+  for (let i = 0; i < count; i++) {
+    const close = closes[i];
+    const prevClose = i > 0 ? closes[i - 1] : close * (1 - returns[0]);
+    const open = prevClose;
+    const bodyHigh = Math.max(open, close);
+    const bodyLow = Math.min(open, close);
+    const wickHigh = bodyHigh + (rand() * volatility * basePrice * 0.75);
+    const wickLow = Math.max(0.01, bodyLow - (rand() * volatility * basePrice * 0.75));
+    const volume = Math.round(volBase * (0.6 + rand() * 0.8));
+
+    candles.push({
+      label: labels[i] || (`T${i + 1}`),
+      open: Number(open.toFixed(2)),
+      high: Number(wickHigh.toFixed(2)),
+      low: Number(wickLow.toFixed(2)),
+      close: Number(close.toFixed(2)),
+      volume,
+      isUp: close >= open
+    });
+  }
+
+  return candles;
+}
+
+// Automatically populate deterministic OHLC and volume series for every demo stock
+Object.keys(DEMO_STOCKS).forEach(symbol => {
+  const stock = DEMO_STOCKS[symbol];
+  stock.candles = {
+    '1G': generateDemoCandles(symbol, stock.rawPrice, '1G'),
+    '1H': generateDemoCandles(symbol, stock.rawPrice, '1H'),
+    '1A': generateDemoCandles(symbol, stock.rawPrice, '1A')
+  };
+});
+
 export const DEMO_NEWS = [
   {
     id: 1,

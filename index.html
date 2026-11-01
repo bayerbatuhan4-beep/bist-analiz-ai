@@ -179,11 +179,20 @@
               </div>
             </div>
 
-            <!-- Timeframe selector -->
-            <div class="timeframe-selector" id="timeframeSelector" role="group" aria-label="Zaman Aralığı Seçimi">
-              <button type="button" class="timeframe-btn active" data-timeframe="1G">1G</button>
-              <button type="button" class="timeframe-btn" data-timeframe="1H">1H</button>
-              <button type="button" class="timeframe-btn" data-timeframe="1A">1A</button>
+            <!-- Chart Controls (View Switch & Timeframe) -->
+            <div class="chart-controls-wrap" id="chartControlsWrap">
+              <!-- Segmented View Toggle: Basit / Detaylı -->
+              <div class="chart-view-toggle" id="chartViewToggle" role="group" aria-label="Grafik Görünüm Türü">
+                <button type="button" class="chart-view-btn active" data-view="basit" aria-pressed="true">Basit</button>
+                <button type="button" class="chart-view-btn" data-view="detayli" aria-pressed="false">Detaylı</button>
+              </div>
+
+              <!-- Timeframe selector -->
+              <div class="timeframe-selector" id="timeframeSelector" role="group" aria-label="Zaman Aralığı Seçimi">
+                <button type="button" class="timeframe-btn active" data-timeframe="1G">1G</button>
+                <button type="button" class="timeframe-btn" data-timeframe="1H">1H</button>
+                <button type="button" class="timeframe-btn" data-timeframe="1A">1A</button>
+              </div>
             </div>
           </div>
 
@@ -191,6 +200,9 @@
           <div class="chart-wrapper" id="chartWrapper">
             <div class="chart-canvas-area" id="svgChartContainer" role="img" aria-label="Hisse Fiyat Grafiği Demo">
               <!-- SVG chart rendered via JavaScript -->
+            </div>
+            <div class="chart-screen-reader-summary visually-hidden" id="chartScreenReaderSummary" aria-live="polite">
+              THYAO için 1G çizgi grafiği. Son fiyat 288,50 TL. Demo veri.
             </div>
             <div class="chart-tooltip" id="chartTooltip" aria-hidden="true"></div>
           </div>
