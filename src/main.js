@@ -6,9 +6,17 @@ import {
   CANNED_AI_RESPONSES
 } from './data/demo.js';
 
+import {
+  BIST_STOCKS,
+  normalizeTurkish,
+  searchStocks
+} from './data/bist-stocks.js';
+
 // State
 let currentStockKey = 'THYAO';
 let currentTimeframe = '1G';
+let currentSearchResults = [];
+let activeDropdownIndex = -1;
 
 // DOM Elements
 const tickerContainer = document.getElementById('tickerItemsContainer');
@@ -19,25 +27,34 @@ const aiInputForm = document.getElementById('aiInputForm');
 const aiQuestionInput = document.getElementById('aiQuestionInput');
 const stockSearchForm = document.getElementById('stockSearchForm');
 const stockSearchInput = document.getElementById('stockSearchInput');
+const stockAutocompleteList = document.getElementById('stockAutocompleteList');
 const chipsList = document.getElementById('chipsList');
-const svgChartContainer = document.getElementById('svgChartContainer');
-const chartTooltip = document.getElementById('chartTooltip');
 
-// Stock details DOM elements
+// Chart card DOM elements
 const stockSymbolDisplay = document.getElementById('stockSymbolDisplay');
 const stockNameDisplay = document.getElementById('stockNameDisplay');
+const stockDemoBadge = document.getElementById('stockDemoBadge');
+const stockPriceContainer = document.getElementById('stockPriceContainer');
 const stockPriceDisplay = document.getElementById('stockPriceDisplay');
 const stockChangeDisplay = document.getElementById('stockChangeDisplay');
 const stockSectorDisplay = document.getElementById('stockSectorDisplay');
+const timeframeSelector = document.getElementById('timeframeSelector');
+const chartWrapper = document.getElementById('chartWrapper');
+const svgChartContainer = document.getElementById('svgChartContainer');
+const chartTooltip = document.getElementById('chartTooltip');
+const noDataCard = document.getElementById('noDataCard');
+const noDataStockTitle = document.getElementById('noDataStockTitle');
+const metricsGrid = document.getElementById('metricsGrid');
 const metricHigh = document.getElementById('metricHigh');
 const metricLow = document.getElementById('metricLow');
 const metricVolume = document.getElementById('metricVolume');
 const metricPE = document.getElementById('metricPE');
+const stockNoteCard = document.getElementById('stockNoteCard');
 const stockSummaryText = document.getElementById('stockSummaryText');
 
 /**
  * Top Navigation Links Smooth Scroll & Panel Focus
- * Ensures all 4 links work reliably on both desktop and mobile
+ * Ensures all links work reliably on both desktop and mobile
  */
 function initNavLinks() {
   const links = document.querySelectorAll('.nav-link');
@@ -65,7 +82,7 @@ function initNavLinks() {
 
         // Trigger pulse highlight on target panel for clear visual feedback
         target.classList.remove('panel-highlight');
-        void target.offsetWidth; // Force CSS reflow
+        void target.offsetWidth;
         target.classList.add('panel-highlight');
         setTimeout(() => {
           target.classList.remove('panel-highlight');
@@ -76,7 +93,7 @@ function initNavLinks() {
 }
 
 /**
- * Render Top Bar Ticker Items
+ * Render Top Bar Ticker Items (Demo)
  */
 function renderTicker() {
   if (!tickerContainer) return;
@@ -116,227 +133,93 @@ function renderChips() {
 }
 
 /**
- * Render News List (6 Demo Items - No Images)
+ * Update quick chips active highlighting
  */
-function renderNews() {
-  if (!newsListContainer) return;
-
-  newsListContainer.innerHTML = DEMO_NEWS.map(item => `
-    <li class="news-item">
-      <div class="news-meta-row">
-        <span class="news-category">${item.category}</span>
-        <time class="news-time">${item.time}</time>
-      </div>
-      <p class="news-title">${item.title}</p>
-      <div class="news-actions">
-        <button type="button" class="news-ask-ai-btn" data-news-title="${item.title}" aria-label="Bu haberi yapay zekaya sor">
-          <span>AI'ya Sor</span>
-          <span aria-hidden="true">→</span>
-        </button>
-      </div>
-    </li>
-  `).join('');
-
-  // Attach click listeners to "AI'ya Sor" inside news cards
-  newsListContainer.querySelectorAll('.news-ask-ai-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const title = e.currentTarget.getAttribute('data-news-title');
-      handleUserQuery(`Bu haberin piyasaya etkisi nedir: "${title}"`);
-      // Smooth scroll to AI Assistant panel
-      const aiPanel = document.getElementById('ai-asistan');
-      if (aiPanel) {
-        const header = document.querySelector('.top-bar');
-        const headerHeight = header ? header.offsetHeight : 70;
-        const targetTop = aiPanel.getBoundingClientRect().top + window.pageYOffset - headerHeight - 12;
-        window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
-        aiPanel.classList.remove('panel-highlight');
-        void aiPanel.offsetWidth;
-        aiPanel.classList.add('panel-highlight');
-        setTimeout(() => aiPanel.classList.remove('panel-highlight'), 1500);
-      }
-    });
-  });
-}
-
-/**
- * Render Suggested Question Buttons
- */
-function renderSuggestedQuestions() {
-  if (!suggestedButtonsContainer) return;
-
-  suggestedButtonsContainer.innerHTML = SUGGESTED_QUESTIONS.map(q => `
-    <button type="button" class="suggested-btn" data-question="${q}">
-      ${q}
-    </button>
-  `).join('');
-
-  suggestedButtonsContainer.querySelectorAll('.suggested-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const q = e.currentTarget.getAttribute('data-question');
-      handleUserQuery(q);
-    });
-  });
-}
-
-/**
- * Check if the input text is a Turkish greeting
- */
-function isGreeting(text) {
-  const t = text.toLowerCase().trim();
-  // Strip punctuation
-  const clean = t.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?'"!]/g, '').trim();
-
-  const greetingWords = [
-    'naber', 'ne haber', "n'aber", 'naber nasilsin', 'naber nasılsın',
-    'merhaba', 'merhabalar', 'meraba',
-    'selam', 'selamlar', 'slm',
-    'günaydın', 'gunaydin',
-    'iyi günler', 'iyi gunler',
-    'iyi akşamlar', 'iyi aksamlar',
-    'nasılsın', 'nasilsin',
-    'hey', 'sa', 'as', 'selamun aleykum', 'aleykum selam'
-  ];
-
-  return greetingWords.some(w => clean === w || clean.startsWith(w + ' ') || clean.endsWith(' ' + w) || clean.includes(' ' + w + ' '));
-}
-
-/**
- * Match a canned response based on input query
- */
-function getCannedResponse(query) {
-  const q = query.toLowerCase().trim();
-
-  // 1. Check for greetings
-  if (isGreeting(q)) {
-    return CANNED_AI_RESPONSES.greeting;
-  }
-
-  // 2. Check for specific stocks in DEMO_STOCKS
-  for (const symbolKey of Object.keys(DEMO_STOCKS)) {
-    const stock = DEMO_STOCKS[symbolKey];
-    const lowerSymbol = symbolKey.toLowerCase();
-    const lowerName = stock.name.toLowerCase();
-
-    if (q.includes(lowerSymbol) || q.includes(lowerName)) {
-      if (CANNED_AI_RESPONSES[lowerSymbol]) {
-        return CANNED_AI_RESPONSES[lowerSymbol];
-      }
-      return `Demo yanıt: ${stock.symbol} (${stock.name}) hissesi ${stock.price} seviyesinde işlem görmekte olup günlük değişimi ${stock.change} yönündedir. Şirket özeti: ${stock.summary} Gün içi en düşük ${stock.dayLow}, en yüksek ise ${stock.dayHigh} olarak gerçekleşmiştir.`;
+function updateActiveChip(symbol) {
+  if (!chipsList) return;
+  chipsList.querySelectorAll('.chip-button').forEach(btn => {
+    const match = btn.getAttribute('data-symbol') === symbol;
+    btn.classList.toggle('active', match);
+    if (match) {
+      btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     }
-  }
-
-  // 3. Check for general market / BIST 100 keywords
-  if (q.includes('bist') || q.includes('endeks') || q.includes('piyasa') || q.includes('borsa')) {
-    return CANNED_AI_RESPONSES.bist100;
-  }
-
-  // 4. Check for macro / news keywords
-  if (q.includes('gelişme') || q.includes('gelisme') || q.includes('haber') || q.includes('tcmb') || q.includes('faiz') || q.includes('enflasyon')) {
-    return CANNED_AI_RESPONSES.gelismeler;
-  }
-
-  // 5. Friendly fallback when question matches nothing
-  return CANNED_AI_RESPONSES.fallback;
+  });
 }
 
 /**
- * Handle User Query in AI Assistant
+ * Update Stock Display in Center Panel
+ * Shows full demo chart, stats & note if stock has demo data.
+ * Shows clear Turkish no-data card if stock has no demo data. Never invents prices.
  */
-function handleUserQuery(questionText) {
-  if (!questionText || !questionText.trim()) return;
-  const cleanQuestion = questionText.trim();
+function updateStockDisplay(symbolKey, customName) {
+  if (!symbolKey) return;
+  const rawKey = symbolKey.trim().toUpperCase();
+  currentStockKey = rawKey;
 
-  // 1. Add User Message
-  appendChatMessage('user', cleanQuestion);
+  const demoStock = DEMO_STOCKS[rawKey];
 
-  // 2. Simulate AI Thinking delay (200ms for responsive feel)
-  const answerText = getCannedResponse(cleanQuestion);
+  if (demoStock) {
+    // ----------------- HAS DEMO DATA -----------------
+    if (stockSymbolDisplay) stockSymbolDisplay.textContent = demoStock.symbol;
+    if (stockNameDisplay) stockNameDisplay.textContent = demoStock.name;
+    if (stockDemoBadge) stockDemoBadge.classList.remove('hidden');
 
-  setTimeout(() => {
-    appendChatMessage('assistant', answerText);
-  }, 200);
-}
+    if (stockPriceContainer) stockPriceContainer.classList.remove('hidden');
+    if (stockPriceDisplay) stockPriceDisplay.textContent = demoStock.price;
+    if (stockChangeDisplay) {
+      stockChangeDisplay.className = `stock-change-pill ${demoStock.isUp ? 'up' : 'down'}`;
+      stockChangeDisplay.innerHTML = `
+        <span class="pill-arrow" aria-hidden="true">${demoStock.isUp ? '▲' : '▼'}</span>
+        <span class="pill-text">${demoStock.change}</span>
+      `;
+    }
+    if (stockSectorDisplay) stockSectorDisplay.textContent = demoStock.sector;
 
-/**
- * Append Message to Chat Container
- */
-function appendChatMessage(sender, text) {
-  if (!chatContainer) return;
+    if (timeframeSelector) timeframeSelector.classList.remove('hidden');
+    if (chartWrapper) chartWrapper.classList.remove('hidden');
+    if (noDataCard) noDataCard.classList.add('hidden');
 
-  const messageDiv = document.createElement('div');
-  messageDiv.className = `chat-message ${sender === 'user' ? 'user-message' : 'assistant-message'}`;
+    if (metricsGrid) metricsGrid.classList.remove('hidden');
+    if (metricHigh) metricHigh.textContent = demoStock.dayHigh;
+    if (metricLow) metricLow.textContent = demoStock.dayLow;
+    if (metricVolume) metricVolume.textContent = demoStock.volume;
+    if (metricPE) metricPE.textContent = demoStock.peRatio;
 
-  if (sender === 'user') {
-    messageDiv.innerHTML = `
-      <div class="message-meta">
-        <span class="sender-name">Siz</span>
-      </div>
-      <p class="message-text">${escapeHtml(text)}</p>
-    `;
+    if (stockNoteCard) stockNoteCard.classList.remove('hidden');
+    if (stockSummaryText) stockSummaryText.textContent = demoStock.summary;
+
+    updateActiveChip(demoStock.symbol);
+    renderSvgChart(demoStock, currentTimeframe);
+
   } else {
-    messageDiv.innerHTML = `
-      <div class="message-meta">
-        <span class="sender-name">BIST AI Asistanı</span>
-        <span class="demo-tag">Demo yanıt</span>
-      </div>
-      <p class="message-text">${escapeHtml(text)}</p>
-    `;
-  }
+    // ----------------- NO DEMO DATA -----------------
+    let displayName = customName;
+    if (!displayName) {
+      const found = BIST_STOCKS.find(s => s.code.toUpperCase() === rawKey);
+      displayName = found ? found.name : 'Borsa İstanbul Şirketi';
+    }
 
-  chatContainer.appendChild(messageDiv);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
-}
+    if (stockSymbolDisplay) stockSymbolDisplay.textContent = rawKey;
+    if (stockNameDisplay) stockNameDisplay.textContent = displayName;
 
-/**
- * Helper to escape HTML characters
- */
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
+    // Never invent prices: hide demo badges, price, timeframe, metrics, and note
+    if (stockDemoBadge) stockDemoBadge.classList.add('hidden');
+    if (stockPriceContainer) stockPriceContainer.classList.add('hidden');
+    if (timeframeSelector) timeframeSelector.classList.add('hidden');
 
-/**
- * Update Stock Display Details
- */
-function updateStockDisplay(symbolKey) {
-  const stock = DEMO_STOCKS[symbolKey] || DEMO_STOCKS.THYAO;
-  currentStockKey = stock.symbol;
-
-  // Title & Code
-  if (stockSymbolDisplay) stockSymbolDisplay.textContent = stock.symbol;
-  if (stockNameDisplay) stockNameDisplay.textContent = stock.name;
-
-  // Price & Change
-  if (stockPriceDisplay) stockPriceDisplay.textContent = stock.price;
-  if (stockChangeDisplay) {
-    stockChangeDisplay.className = `stock-change-pill ${stock.isUp ? 'up' : 'down'}`;
-    stockChangeDisplay.innerHTML = `
-      <span class="pill-arrow" aria-hidden="true">${stock.isUp ? '▲' : '▼'}</span>
-      <span class="pill-text">${stock.change}</span>
-    `;
-  }
-
-  if (stockSectorDisplay) stockSectorDisplay.textContent = stock.sector;
-  if (metricHigh) metricHigh.textContent = stock.dayHigh;
-  if (metricLow) metricLow.textContent = stock.dayLow;
-  if (metricVolume) metricVolume.textContent = stock.volume;
-  if (metricPE) metricPE.textContent = stock.peRatio;
-  if (stockSummaryText) stockSummaryText.textContent = stock.summary;
-
-  // Update quick chips active class & scroll selected chip into view
-  if (chipsList) {
-    chipsList.querySelectorAll('.chip-button').forEach(btn => {
-      const match = btn.getAttribute('data-symbol') === stock.symbol;
-      btn.classList.toggle('active', match);
-      if (match) {
-        btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    if (chartWrapper) chartWrapper.classList.add('hidden');
+    if (noDataCard) {
+      noDataCard.classList.remove('hidden');
+      if (noDataStockTitle) {
+        noDataStockTitle.textContent = `${rawKey} - ${displayName}`;
       }
-    });
-  }
+    }
 
-  // Render SVG Chart for current timeframe
-  renderSvgChart(stock, currentTimeframe);
+    if (metricsGrid) metricsGrid.classList.add('hidden');
+    if (stockNoteCard) stockNoteCard.classList.add('hidden');
+
+    updateActiveChip(rawKey);
+  }
 }
 
 /**
@@ -478,6 +361,307 @@ function renderSvgChart(stock, timeframe) {
 }
 
 /**
+ * Autocomplete Dropdown Controls
+ */
+function showAutocomplete() {
+  if (stockAutocompleteList) {
+    stockAutocompleteList.classList.remove('hidden');
+    if (stockSearchInput) {
+      stockSearchInput.setAttribute('aria-expanded', 'true');
+    }
+  }
+}
+
+function hideAutocomplete() {
+  if (stockAutocompleteList) {
+    stockAutocompleteList.classList.add('hidden');
+    stockAutocompleteList.innerHTML = '';
+    activeDropdownIndex = -1;
+    currentSearchResults = [];
+    if (stockSearchInput) {
+      stockSearchInput.setAttribute('aria-expanded', 'false');
+      stockSearchInput.removeAttribute('aria-activedescendant');
+    }
+  }
+}
+
+/**
+ * Render Autocomplete Results (Turkish-aware, accent-insensitive)
+ */
+function renderAutocompleteResults(query) {
+  if (!stockAutocompleteList || !stockSearchInput) return;
+
+  const trimmed = query.trim();
+  if (!trimmed) {
+    hideAutocomplete();
+    return;
+  }
+
+  currentSearchResults = searchStocks(trimmed, 8);
+  activeDropdownIndex = -1;
+
+  if (currentSearchResults.length > 0) {
+    stockAutocompleteList.innerHTML = currentSearchResults.map((stock, idx) => `
+      <li 
+        id="stock-opt-${idx}" 
+        role="option" 
+        class="autocomplete-item" 
+        aria-selected="false"
+        data-index="${idx}"
+        data-code="${stock.code}"
+        data-name="${escapeHtml(stock.name)}"
+      >
+        <span class="autocomplete-code">${stock.code}</span>
+        <span class="autocomplete-name">${escapeHtml(stock.name)}</span>
+      </li>
+    `).join('');
+    showAutocomplete();
+  } else {
+    // If no match found in BIST_STOCKS, offer to inspect typed code
+    const cleanTyped = trimmed.replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ]/g, '').toUpperCase() || trimmed.toUpperCase();
+    stockAutocompleteList.innerHTML = `
+      <li 
+        id="stock-opt-fallback" 
+        role="option" 
+        class="autocomplete-fallback" 
+        aria-selected="false"
+        data-code="${cleanTyped}"
+        data-name="${cleanTyped}"
+      >
+        <span>Sonuç bulunamadı — <strong class="autocomplete-fallback-code">${cleanTyped}</strong> hissesini incele</span>
+        <span aria-hidden="true">↵</span>
+      </li>
+    `;
+    showAutocomplete();
+  }
+}
+
+/**
+ * Update Highlighted Item in Autocomplete Dropdown
+ */
+function updateActiveDropdownHighlight() {
+  if (!stockAutocompleteList) return;
+
+  const items = stockAutocompleteList.querySelectorAll('[role="option"]');
+  items.forEach((item, idx) => {
+    const isSelected = idx === activeDropdownIndex;
+    item.classList.toggle('highlighted', isSelected);
+    item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+    if (isSelected) {
+      stockSearchInput.setAttribute('aria-activedescendant', item.id);
+      item.scrollIntoView({ block: 'nearest' });
+    }
+  });
+
+  if (activeDropdownIndex < 0 && stockSearchInput) {
+    stockSearchInput.removeAttribute('aria-activedescendant');
+  }
+}
+
+/**
+ * Select a Stock from Search / Dropdown
+ */
+function selectStock(code, name) {
+  if (!code) return;
+  updateStockDisplay(code, name);
+  if (stockSearchInput) {
+    stockSearchInput.value = '';
+  }
+  hideAutocomplete();
+
+  // On narrow screens, scroll smoothly to chart
+  if (window.innerWidth <= 1080) {
+    const chartSection = document.getElementById('grafik');
+    if (chartSection) {
+      const header = document.querySelector('.top-bar');
+      const headerHeight = header ? header.offsetHeight : 70;
+      const targetTop = chartSection.getBoundingClientRect().top + window.pageYOffset - headerHeight - 12;
+      window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+    }
+  }
+}
+
+/**
+ * Render News List (6 Demo Items - No Images)
+ */
+function renderNews() {
+  if (!newsListContainer) return;
+
+  newsListContainer.innerHTML = DEMO_NEWS.map(item => `
+    <li class="news-item">
+      <div class="news-meta-row">
+        <span class="news-category">${item.category}</span>
+        <time class="news-time">${item.time}</time>
+      </div>
+      <p class="news-title">${item.title}</p>
+      <div class="news-actions">
+        <button type="button" class="news-ask-ai-btn" data-news-title="${item.title}" aria-label="Bu haberi yapay zekaya sor">
+          <span>AI'ya Sor</span>
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </li>
+  `).join('');
+
+  // Attach click listeners to "AI'ya Sor" inside news cards
+  newsListContainer.querySelectorAll('.news-ask-ai-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const title = e.currentTarget.getAttribute('data-news-title');
+      handleUserQuery(`Bu haberin piyasaya etkisi nedir: "${title}"`);
+
+      // Smooth scroll to AI Assistant panel
+      const aiPanel = document.getElementById('ai-asistan');
+      if (aiPanel) {
+        const header = document.querySelector('.top-bar');
+        const headerHeight = header ? header.offsetHeight : 70;
+        const targetTop = aiPanel.getBoundingClientRect().top + window.pageYOffset - headerHeight - 12;
+        window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+        aiPanel.classList.remove('panel-highlight');
+        void aiPanel.offsetWidth;
+        aiPanel.classList.add('panel-highlight');
+        setTimeout(() => aiPanel.classList.remove('panel-highlight'), 1500);
+      }
+    });
+  });
+}
+
+/**
+ * Render Suggested Question Buttons
+ */
+function renderSuggestedQuestions() {
+  if (!suggestedButtonsContainer) return;
+
+  suggestedButtonsContainer.innerHTML = SUGGESTED_QUESTIONS.map(q => `
+    <button type="button" class="suggested-btn" data-question="${q}">
+      ${q}
+    </button>
+  `).join('');
+
+  suggestedButtonsContainer.querySelectorAll('.suggested-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const q = e.currentTarget.getAttribute('data-question');
+      handleUserQuery(q);
+    });
+  });
+}
+
+/**
+ * Check if the input text is a Turkish greeting
+ */
+function isGreeting(text) {
+  const t = text.toLowerCase().trim();
+  const clean = t.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?'"!]/g, '').trim();
+
+  const greetingWords = [
+    'naber', 'ne haber', "n'aber", 'naber nasilsin', 'naber nasılsın',
+    'merhaba', 'merhabalar', 'meraba',
+    'selam', 'selamlar', 'slm',
+    'günaydın', 'gunaydin',
+    'iyi günler', 'iyi gunler',
+    'iyi akşamlar', 'iyi aksamlar',
+    'nasılsın', 'nasilsin',
+    'hey', 'sa', 'as', 'selamun aleykum', 'aleykum selam'
+  ];
+
+  return greetingWords.some(w => clean === w || clean.startsWith(w + ' ') || clean.endsWith(' ' + w) || clean.includes(' ' + w + ' '));
+}
+
+/**
+ * Match a canned response based on input query
+ */
+function getCannedResponse(query) {
+  const q = query.toLowerCase().trim();
+
+  // 1. Check for greetings
+  if (isGreeting(q)) {
+    return CANNED_AI_RESPONSES.greeting;
+  }
+
+  // 2. Check for specific stocks in DEMO_STOCKS
+  for (const symbolKey of Object.keys(DEMO_STOCKS)) {
+    const stock = DEMO_STOCKS[symbolKey];
+    const lowerSymbol = symbolKey.toLowerCase();
+    const lowerName = stock.name.toLowerCase();
+
+    if (q.includes(lowerSymbol) || q.includes(lowerName)) {
+      if (CANNED_AI_RESPONSES[lowerSymbol]) {
+        return CANNED_AI_RESPONSES[lowerSymbol];
+      }
+      return `Demo yanıt: ${stock.symbol} (${stock.name}) hissesi demo portföyümüzde incelenmektedir. Şirket özeti: ${stock.summary}`;
+    }
+  }
+
+  // 3. Check for general market / BIST 100 keywords
+  if (q.includes('bist') || q.includes('endeks') || q.includes('piyasa') || q.includes('borsa')) {
+    return CANNED_AI_RESPONSES.bist100;
+  }
+
+  // 4. Check for macro / news keywords
+  if (q.includes('gelişme') || q.includes('gelisme') || q.includes('haber') || q.includes('tcmb') || q.includes('faiz') || q.includes('enflasyon')) {
+    return CANNED_AI_RESPONSES.gelismeler;
+  }
+
+  // 5. Friendly fallback when question matches nothing
+  return CANNED_AI_RESPONSES.fallback;
+}
+
+/**
+ * Handle User Query in AI Assistant
+ */
+function handleUserQuery(questionText) {
+  if (!questionText || !questionText.trim()) return;
+  const cleanQuestion = questionText.trim();
+
+  appendChatMessage('user', cleanQuestion);
+
+  const answerText = getCannedResponse(cleanQuestion);
+
+  setTimeout(() => {
+    appendChatMessage('assistant', answerText);
+  }, 200);
+}
+
+/**
+ * Append Message to Chat Container
+ */
+function appendChatMessage(sender, text) {
+  if (!chatContainer) return;
+
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `chat-message ${sender === 'user' ? 'user-message' : 'assistant-message'}`;
+
+  if (sender === 'user') {
+    messageDiv.innerHTML = `
+      <div class="message-meta">
+        <span class="sender-name">Siz</span>
+      </div>
+      <p class="message-text">${escapeHtml(text)}</p>
+    `;
+  } else {
+    messageDiv.innerHTML = `
+      <div class="message-meta">
+        <span class="sender-name">BIST AI Asistanı</span>
+        <span class="demo-tag">Demo yanıt</span>
+      </div>
+      <p class="message-text">${escapeHtml(text)}</p>
+    `;
+  }
+
+  chatContainer.appendChild(messageDiv);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+/**
+ * Helper to escape HTML characters
+ */
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/**
  * Event Listeners Initialization
  */
 function initEventListeners() {
@@ -496,57 +680,142 @@ function initEventListeners() {
     });
   }
 
-  // Stock Search Form
-  if (stockSearchForm && stockSearchInput) {
-    stockSearchForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const query = stockSearchInput.value.trim().toUpperCase();
-      if (!query) return;
-
-      if (DEMO_STOCKS[query]) {
-        updateStockDisplay(query);
-        stockSearchInput.value = '';
-
-        // If on small screen, smoothly scroll down to chart
-        if (window.innerWidth <= 1080) {
-          const chartSection = document.getElementById('grafik');
-          if (chartSection) {
-            const header = document.querySelector('.top-bar');
-            const headerHeight = header ? header.offsetHeight : 70;
-            const targetTop = chartSection.getBoundingClientRect().top + window.pageYOffset - headerHeight - 12;
-            window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
-          }
-        }
-      } else {
-        alert(`"${query}" kodu demo listesinde bulunamadı.\n\nLütfen mevcut 20 hisseden birini arayın: ${Object.keys(DEMO_STOCKS).join(', ')}`);
-      }
-    });
-  }
-
   // Quick Chips Click Event
   if (chipsList) {
     chipsList.addEventListener('click', (e) => {
       const btn = e.target.closest('.chip-button');
       if (btn) {
         const symbol = btn.getAttribute('data-symbol');
-        if (symbol && DEMO_STOCKS[symbol]) {
-          updateStockDisplay(symbol);
+        if (symbol) {
+          selectStock(symbol);
         }
       }
     });
   }
 
-  // Timeframe buttons
+  // Timeframe buttons (1G, 1H, 1A)
   const timeframeButtons = document.querySelectorAll('.timeframe-btn');
   timeframeButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       timeframeButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentTimeframe = btn.getAttribute('data-timeframe');
-      const stock = DEMO_STOCKS[currentStockKey] || DEMO_STOCKS.THYAO;
-      renderSvgChart(stock, currentTimeframe);
+      const stock = DEMO_STOCKS[currentStockKey];
+      if (stock) {
+        renderSvgChart(stock, currentTimeframe);
+      }
     });
   });
+
+  // Stock Search Input Events (Turkish-aware, accent-insensitive autocomplete)
+  if (stockSearchInput) {
+    stockSearchInput.addEventListener('input', (e) => {
+      renderAutocompleteResults(e.target.value);
+    });
+
+    stockSearchInput.addEventListener('keydown', (e) => {
+      if (!stockAutocompleteList || stockAutocompleteList.classList.contains('hidden')) {
+        if (e.key === 'ArrowDown' && stockSearchInput.value.trim()) {
+          renderAutocompleteResults(stockSearchInput.value);
+          e.preventDefault();
+        }
+        return;
+      }
+
+      const items = stockAutocompleteList.querySelectorAll('[role="option"]');
+      if (items.length === 0) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeDropdownIndex = (activeDropdownIndex + 1) % items.length;
+        updateActiveDropdownHighlight();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeDropdownIndex = activeDropdownIndex <= 0 ? items.length - 1 : activeDropdownIndex - 1;
+        updateActiveDropdownHighlight();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        hideAutocomplete();
+      } else if (e.key === 'Enter') {
+        // If an option is active in the dropdown, select it
+        if (activeDropdownIndex >= 0 && items[activeDropdownIndex]) {
+          e.preventDefault();
+          const targetItem = items[activeDropdownIndex];
+          const code = targetItem.getAttribute('data-code');
+          const name = targetItem.getAttribute('data-name');
+          selectStock(code, name);
+        }
+      }
+    });
+  }
+
+  // Click on autocomplete dropdown item
+  if (stockAutocompleteList) {
+    stockAutocompleteList.addEventListener('mousedown', (e) => {
+      // Prevent input blur before click registers
+      e.preventDefault();
+    });
+
+    stockAutocompleteList.addEventListener('click', (e) => {
+      const item = e.target.closest('[role="option"]');
+      if (item) {
+        const code = item.getAttribute('data-code');
+        const name = item.getAttribute('data-name');
+        selectStock(code, name);
+      }
+    });
+  }
+
+  // Hide autocomplete when clicking outside
+  document.addEventListener('click', (e) => {
+    if (stockSearchForm && !stockSearchForm.contains(e.target)) {
+      hideAutocomplete();
+    }
+  });
+
+  // Stock Search Form Submit
+  if (stockSearchForm && stockSearchInput) {
+    stockSearchForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const query = stockSearchInput.value.trim();
+      if (!query) return;
+
+      // 1. If dropdown item is highlighted, select it
+      if (stockAutocompleteList && !stockAutocompleteList.classList.contains('hidden')) {
+        const items = stockAutocompleteList.querySelectorAll('[role="option"]');
+        if (activeDropdownIndex >= 0 && items[activeDropdownIndex]) {
+          const item = items[activeDropdownIndex];
+          selectStock(item.getAttribute('data-code'), item.getAttribute('data-name'));
+          return;
+        }
+      }
+
+      // 2. Check exact code match in DEMO_STOCKS or BIST_STOCKS
+      const norm = normalizeTurkish(query);
+      const exactDemoKey = Object.keys(DEMO_STOCKS).find(k => normalizeTurkish(k) === norm);
+      if (exactDemoKey) {
+        selectStock(exactDemoKey, DEMO_STOCKS[exactDemoKey].name);
+        return;
+      }
+
+      const exactStock = BIST_STOCKS.find(s => normalizeTurkish(s.code) === norm);
+      if (exactStock) {
+        selectStock(exactStock.code, exactStock.name);
+        return;
+      }
+
+      // 3. Check search results
+      const matches = searchStocks(query, 1);
+      if (matches.length > 0) {
+        selectStock(matches[0].code, matches[0].name);
+        return;
+      }
+
+      // 4. Fallback: select typed code
+      const cleanCode = query.replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ]/g, '').toUpperCase() || query.toUpperCase();
+      selectStock(cleanCode, cleanCode);
+    });
+  }
 }
 
 /**

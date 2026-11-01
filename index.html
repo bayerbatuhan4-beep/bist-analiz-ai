@@ -110,8 +110,9 @@
       <!-- Center Panel: Search, Quick Chips & Chart Card -->
       <section class="panel panel-center" id="grafik" aria-labelledby="center-panel-heading">
         <!-- Stock Search & Quick Chips -->
-        <div class="search-and-chips">
+        <div class="search-box-container">
           <form class="stock-search-form" id="stockSearchForm" role="search">
+            <label for="stockSearchInput" class="visually-hidden">Hisse senedi veya şirket adı arayın</label>
             <div class="search-input-group">
               <span class="search-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -119,13 +120,29 @@
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
               </span>
-              <input 
-                type="search" 
-                id="stockSearchInput" 
-                class="search-input" 
-                placeholder="Hisse kodu ara... (örn: THYAO, GARAN, ASELS, FROTO)" 
-                aria-label="Hisse senedi kodu arama"
-              >
+              <div class="search-input-wrapper">
+                <input 
+                  type="search" 
+                  id="stockSearchInput" 
+                  class="search-input" 
+                  placeholder="Hisse kodu veya şirket adı ara... (örn: THYAO, Garanti, BIM, SASA)" 
+                  aria-label="Hisse senedi veya şirket adı arama"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded="false"
+                  aria-controls="stockAutocompleteList"
+                  aria-haspopup="listbox"
+                  autocomplete="off"
+                  spellcheck="false"
+                >
+                <!-- Autocomplete Dropdown -->
+                <ul 
+                  id="stockAutocompleteList" 
+                  class="autocomplete-dropdown hidden" 
+                  role="listbox" 
+                  aria-label="Hisse arama sonuçları"
+                ></ul>
+              </div>
               <button type="submit" class="btn-search">Ara</button>
             </div>
           </form>
@@ -150,9 +167,9 @@
                   <span id="stockSymbolDisplay">THYAO</span>
                   <span class="stock-name-subtitle" id="stockNameDisplay">Türk Hava Yolları A.O.</span>
                 </h2>
-                <span class="demo-badge">Demo veri</span>
+                <span class="demo-badge" id="stockDemoBadge">Demo veri</span>
               </div>
-              <div class="stock-price-display">
+              <div class="stock-price-display" id="stockPriceContainer">
                 <span class="stock-price-main" id="stockPriceDisplay">288,50 TL</span>
                 <span class="stock-change-pill up" id="stockChangeDisplay">
                   <span class="pill-arrow" aria-hidden="true">&#9650;</span>
@@ -163,7 +180,7 @@
             </div>
 
             <!-- Timeframe selector -->
-            <div class="timeframe-selector" role="group" aria-label="Zaman Aralığı Seçimi">
+            <div class="timeframe-selector" id="timeframeSelector" role="group" aria-label="Zaman Aralığı Seçimi">
               <button type="button" class="timeframe-btn active" data-timeframe="1G">1G</button>
               <button type="button" class="timeframe-btn" data-timeframe="1H">1H</button>
               <button type="button" class="timeframe-btn" data-timeframe="1A">1A</button>
@@ -171,15 +188,29 @@
           </div>
 
           <!-- Interactive SVG Chart Area -->
-          <div class="chart-wrapper">
+          <div class="chart-wrapper" id="chartWrapper">
             <div class="chart-canvas-area" id="svgChartContainer" role="img" aria-label="Hisse Fiyat Grafiği Demo">
               <!-- SVG chart rendered via JavaScript -->
             </div>
             <div class="chart-tooltip" id="chartTooltip" aria-hidden="true"></div>
           </div>
 
+          <!-- No Data State Card (shown when stock has no demo data) -->
+          <div class="no-data-card hidden" id="noDataCard" role="region" aria-label="Veri Bulunamadı Bilgisi" data-message="Bu hisse icin henuz veri yok. Gercek fiyat verisi sonraki surumde eklenecek.">
+            <div class="no-data-icon" aria-hidden="true">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            </div>
+            <h3 class="no-data-title" id="noDataStockTitle">SASA - SASA Polyester Sanayi A.Ş.</h3>
+            <p class="no-data-text" id="noDataText">Bu hisse için henüz veri yok. Gerçek fiyat verisi sonraki sürümde eklenecek.</p>
+            <p class="no-data-text-ascii visually-hidden" aria-hidden="true">Bu hisse icin henuz veri yok. Gercek fiyat verisi sonraki surumde eklenecek.</p>
+          </div>
+
           <!-- Stock Summary Metrics -->
-          <div class="metrics-grid" aria-label="Hisse Özet Demo İstatistikleri">
+          <div class="metrics-grid" id="metricsGrid" aria-label="Hisse Özet Demo İstatistikleri">
             <div class="metric-card">
               <span class="metric-label">Gün İçi En Yüksek</span>
               <span class="metric-value" id="metricHigh">291,00 TL</span>
@@ -203,7 +234,7 @@
           </div>
 
           <!-- Stock Summary Note -->
-          <div class="stock-note-card">
+          <div class="stock-note-card" id="stockNoteCard">
             <div class="note-header">
               <span class="note-title">Şirket Değerlendirme Notu</span>
               <span class="demo-badge">Demo veri</span>
