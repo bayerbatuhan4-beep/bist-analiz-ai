@@ -20,6 +20,80 @@ let currentViewMode = 'basit'; // 'basit' | 'detayli'
 let currentSearchResults = [];
 let activeDropdownIndex = -1;
 
+// ==========================================
+// Theme Management (Lacivert / Altın / Açık)
+// ==========================================
+const THEME_STORAGE_KEY = 'bist_theme';
+const VALID_THEMES = ['lacivert', 'altin', 'acik'];
+
+function getSavedTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if (VALID_THEMES.includes(saved)) {
+      return saved;
+    }
+  } catch (e) {
+    // Storage access might be restricted
+  }
+  return 'lacivert';
+}
+
+function setTheme(theme) {
+  if (!VALID_THEMES.includes(theme)) {
+    theme = 'lacivert';
+  }
+
+  // Update data-theme on <html>
+  document.documentElement.setAttribute('data-theme', theme);
+
+  // Update meta theme-color for mobile browser toolbar
+  const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+  if (metaThemeColor) {
+    const metaColors = {
+      lacivert: '#0B1426',
+      altin: '#0F1115',
+      acik: '#F4F6FA'
+    };
+    metaThemeColor.setAttribute('content', metaColors[theme] || '#0B1426');
+  }
+
+  // Sync theme switcher buttons aria-pressed and active classes
+  const themeButtons = document.querySelectorAll('.theme-btn');
+  themeButtons.forEach(btn => {
+    const val = btn.getAttribute('data-theme-val');
+    const isActive = val === theme;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+
+  // Persist to localStorage safely inside try/catch
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch (e) {
+    // Graceful fallback if storage fails
+  }
+
+  // Re-render chart if already mounted so SVG and canvas states match theme immediately
+  if (svgChartContainer && DEMO_STOCKS[currentStockKey]) {
+    renderActiveChart();
+  }
+}
+
+function initThemeSwitcher() {
+  const currentTheme = document.documentElement.getAttribute('data-theme') || getSavedTheme();
+  setTheme(currentTheme);
+
+  const themeButtons = document.querySelectorAll('.theme-btn');
+  themeButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const themeVal = btn.getAttribute('data-theme-val');
+      if (themeVal) {
+        setTheme(themeVal);
+      }
+    });
+  });
+}
+
 // DOM Elements
 const tickerContainer = document.getElementById('tickerItemsContainer');
 const newsListContainer = document.getElementById('newsListContainer');
@@ -296,10 +370,8 @@ function renderSvgChart(stock, timeframe) {
   // Build area fill path
   const areaPathD = `${linePathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
-  // Colors based on trend
-  const strokeColor = stock.isUp ? '#22C55E' : '#EF4444';
-  const gradStop1 = stock.isUp ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)';
-  const gradStop2 = 'rgba(11, 20, 38, 0.0)';
+  // Colors based on trend (CSS Custom Properties)
+  const strokeColor = stock.isUp ? 'var(--color-green)' : 'var(--color-red)';
 
   // 4 Horizontal Grid Lines
   const gridSteps = 4;
@@ -308,14 +380,14 @@ function renderSvgChart(stock, timeframe) {
     const val = domainMin + (s / gridSteps) * (domainMax - domainMin);
     const yPos = getY(val);
     gridLinesHtml += `
-      <line x1="${padLeft}" y1="${yPos.toFixed(1)}" x2="${width - padRight}" y2="${yPos.toFixed(1)}" stroke="#1E2C4A" stroke-dasharray="3 3" stroke-width="1" />
-      <text x="${padLeft - 8}" y="${(yPos + 4).toFixed(1)}" fill="#64748B" font-size="10" text-anchor="end" font-family="sans-serif">${val.toFixed(2)}</text>
+      <line x1="${padLeft}" y1="${yPos.toFixed(1)}" x2="${width - padRight}" y2="${yPos.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="3 3" stroke-width="1" />
+      <text x="${padLeft - 8}" y="${(yPos + 4).toFixed(1)}" fill="var(--chart-grid-text)" font-size="10" text-anchor="end" font-family="sans-serif">${val.toFixed(2)}</text>
     `;
   }
 
   // X-axis labels
   const xLabelsHtml = points.map(pt => `
-    <text x="${pt.x.toFixed(1)}" y="${height - 10}" fill="#94A3B8" font-size="10" text-anchor="middle" font-family="sans-serif">${pt.label}</text>
+    <text x="${pt.x.toFixed(1)}" y="${height - 10}" fill="var(--text-muted)" font-size="10" text-anchor="middle" font-family="sans-serif">${pt.label}</text>
   `).join('');
 
   // Interactive Hover Dots
@@ -325,7 +397,7 @@ function renderSvgChart(stock, timeframe) {
       cy="${pt.y.toFixed(1)}" 
       r="4.5" 
       fill="${strokeColor}" 
-      stroke="#0B1426" 
+      stroke="var(--chart-bg)" 
       stroke-width="2" 
       class="chart-point" 
       data-index="${i}"
@@ -339,8 +411,8 @@ function renderSvgChart(stock, timeframe) {
     <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" class="market-svg" aria-hidden="true">
       <defs>
         <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${gradStop1}" />
-          <stop offset="100%" stop-color="${gradStop2}" />
+          <stop offset="0%" stop-color="${strokeColor}" stop-opacity="0.32" />
+          <stop offset="100%" stop-color="var(--chart-bg)" stop-opacity="0" />
         </linearGradient>
       </defs>
 
@@ -440,15 +512,15 @@ function renderCandleChart(stock, timeframe) {
     const val = domainMin + (s / gridSteps) * (domainMax - domainMin);
     const yPos = getY(val);
     gridLinesHtml += `
-      <line x1="${padLeft}" y1="${yPos.toFixed(1)}" x2="${width - padRight}" y2="${yPos.toFixed(1)}" stroke="#1E2C4A" stroke-dasharray="3 3" stroke-width="1" />
-      <text x="${padLeft - 8}" y="${(yPos + 3.5).toFixed(1)}" fill="#64748B" font-size="10" text-anchor="end" font-family="sans-serif">${val.toFixed(2)}</text>
+      <line x1="${padLeft}" y1="${yPos.toFixed(1)}" x2="${width - padRight}" y2="${yPos.toFixed(1)}" stroke="var(--chart-grid)" stroke-dasharray="3 3" stroke-width="1" />
+      <text x="${padLeft - 8}" y="${(yPos + 3.5).toFixed(1)}" fill="var(--chart-grid-text)" font-size="10" text-anchor="end" font-family="sans-serif">${val.toFixed(2)}</text>
     `;
   }
 
   // Volume separator & label
   const volSeparatorHtml = `
-    <line x1="${padLeft}" y1="${volTop - 4}" x2="${width - padRight}" y2="${volTop - 4}" stroke="#1E2C4A" stroke-width="1" />
-    <text x="${padLeft - 8}" y="${volTop + 10}" fill="#64748B" font-size="9" text-anchor="end" font-family="sans-serif">Hacim</text>
+    <line x1="${padLeft}" y1="${volTop - 4}" x2="${width - padRight}" y2="${volTop - 4}" stroke="var(--chart-grid)" stroke-width="1" />
+    <text x="${padLeft - 8}" y="${volTop + 10}" fill="var(--chart-grid-text)" font-size="9" text-anchor="end" font-family="sans-serif">Hacim</text>
   `;
 
   // Moving Average SMA-5
@@ -464,15 +536,15 @@ function renderCandleChart(stock, timeframe) {
 
   // X-axis labels
   const xLabelsHtml = candles.map((c, i) => `
-    <text x="${getX(i).toFixed(1)}" y="${height - 10}" fill="#94A3B8" font-size="9" text-anchor="middle" font-family="sans-serif">${c.label}</text>
+    <text x="${getX(i).toFixed(1)}" y="${height - 10}" fill="var(--text-muted)" font-size="9" text-anchor="middle" font-family="sans-serif">${c.label}</text>
   `).join('');
 
   // Candlesticks and Volume Bars
   const candlesHtml = candles.map((c, i) => {
     const cx = getX(i);
     const isUp = c.isUp;
-    const color = isUp ? '#22C55E' : '#EF4444';
-    const vColor = isUp ? 'rgba(34, 197, 94, 0.45)' : 'rgba(239, 68, 68, 0.45)';
+    const color = isUp ? 'var(--color-green)' : 'var(--color-red)';
+    const vColor = isUp ? 'var(--volume-bar-up)' : 'var(--volume-bar-down)';
     const wickY1 = getY(c.high);
     const wickY2 = getY(c.low);
     const bodyTop = getY(Math.max(c.open, c.close));
@@ -509,12 +581,12 @@ function renderCandleChart(stock, timeframe) {
     <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" class="market-svg" aria-hidden="true">
       <!-- Indicators Header Legend -->
       <g class="chart-legend">
-        <circle cx="55" cy="14" r="3.5" fill="#38BDF8" />
-        <text x="63" y="17" fill="#94A3B8" font-size="9.5" font-family="sans-serif">HO(5) Hareketli Ortalama</text>
-        <rect x="200" y="10.5" width="7" height="7" fill="#22C55E" rx="1" />
-        <text x="211" y="17" fill="#94A3B8" font-size="9.5" font-family="sans-serif">Yükseliş</text>
-        <rect x="260" y="10.5" width="7" height="7" fill="#EF4444" rx="1" />
-        <text x="271" y="17" fill="#94A3B8" font-size="9.5" font-family="sans-serif">Düşüş</text>
+        <circle cx="55" cy="14" r="3.5" fill="var(--chart-ma)" />
+        <text x="63" y="17" fill="var(--text-muted)" font-size="9.5" font-family="sans-serif">HO(5) Hareketli Ortalama</text>
+        <rect x="200" y="10.5" width="7" height="7" fill="var(--color-green)" rx="1" />
+        <text x="211" y="17" fill="var(--text-muted)" font-size="9.5" font-family="sans-serif">Yükseliş</text>
+        <rect x="260" y="10.5" width="7" height="7" fill="var(--color-red)" rx="1" />
+        <text x="271" y="17" fill="var(--text-muted)" font-size="9.5" font-family="sans-serif">Düşüş</text>
       </g>
 
       <!-- Horizontal Price Grid Lines -->
@@ -524,7 +596,7 @@ function renderCandleChart(stock, timeframe) {
       ${volSeparatorHtml}
 
       <!-- Moving Average Line -->
-      <path d="${maPathD}" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="${maPathD}" fill="none" stroke="var(--chart-ma)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
 
       <!-- Candlesticks and Volume Bars -->
       ${candlesHtml}
@@ -558,7 +630,7 @@ function renderCandleChart(stock, timeframe) {
           <div class="tooltip-row"><span>Açılış:</span> <strong>${c.open.toFixed(2)} TL</strong></div>
           <div class="tooltip-row"><span>Yüksek:</span> <strong>${c.high.toFixed(2)} TL</strong></div>
           <div class="tooltip-row"><span>Düşük:</span> <strong>${c.low.toFixed(2)} TL</strong></div>
-          <div class="tooltip-row"><span>Kapanış:</span> <strong style="color:${isUp ? '#22C55E' : '#EF4444'}">${c.close.toFixed(2)} TL (${chgSign}%${chgPct})</strong></div>
+          <div class="tooltip-row"><span>Kapanış:</span> <strong style="color:${isUp ? 'var(--color-green)' : 'var(--color-red)'}">${c.close.toFixed(2)} TL (${chgSign}%${chgPct})</strong></div>
           <div class="tooltip-row tooltip-volume-row"><span>Hacim:</span> <strong>${c.volume.toLocaleString('tr-TR')} Lot</strong></div>
         </div>
       `;
@@ -1052,6 +1124,7 @@ function initEventListeners() {
  * App Bootstrapper
  */
 function initApp() {
+  initThemeSwitcher();
   renderTicker();
   renderChips();
   renderNews();
