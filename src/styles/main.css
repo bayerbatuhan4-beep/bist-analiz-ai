@@ -1959,3 +1959,122 @@ section[id], .panel[id] {
   .btn-search { padding-inline: 0.6rem; }
   .chart-tooltip { left: 5px; right: 5px; max-width: none; }
 }
+
+/* Mobile navigation, quick theme control, and floating assistant */
+.mobile-menu-panel { display: contents; }
+.mobile-menu-toggle,
+.mobile-theme-toggle,
+.ai-floating-button,
+.ai-panel-close,
+.ai-panel-backdrop { display: none; }
+.ai-header-actions { display: flex; align-items: center; gap: 0.45rem; }
+
+@media (max-width: 768px) {
+  .top-bar { z-index: 70; }
+  .top-bar-container {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    padding: 0.55rem 0.75rem;
+    gap: 0.5rem;
+  }
+  .brand-area { grid-column: 1; grid-row: 1; }
+  .ticker-bar { grid-column: 1 / -1; grid-row: 2; }
+  .mobile-theme-toggle,
+  .mobile-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .mobile-theme-toggle { grid-column: 2; grid-row: 1; }
+  .mobile-menu-toggle { grid-column: 3; grid-row: 1; flex-direction: column; gap: 5px; }
+  .mobile-menu-toggle span { display: block; width: 19px; height: 2px; border-radius: 2px; background: currentColor; }
+  .mobile-menu-toggle:focus-visible,
+  .mobile-theme-toggle:focus-visible,
+  .ai-floating-button:focus-visible,
+  .ai-panel-close:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .mobile-menu-panel {
+    display: none;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    width: 100%;
+    padding: 0.7rem;
+    gap: 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-card);
+  }
+  .mobile-menu-panel.is-open { display: flex; flex-direction: column; }
+  .mobile-menu-panel .nav-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 0.4rem;
+    overflow: visible;
+  }
+  .mobile-menu-panel .nav-link { min-height: 44px; display: flex; align-items: center; padding: 0.65rem 0.75rem; font-size: 0.88rem; }
+  .mobile-menu-panel .theme-switcher { width: 100%; justify-content: stretch; }
+  .mobile-menu-panel .theme-btn { flex: 1; min-height: 40px; font-size: 0.76rem; }
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .ai-floating-button {
+    position: fixed;
+    z-index: 95;
+    right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 50px;
+    padding: 0 1rem;
+    border: 1px solid var(--color-accent);
+    border-radius: 999px;
+    background: var(--color-accent);
+    color: var(--color-accent-contrast);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .ai-floating-button svg { flex: 0 0 auto; }
+  .ai-panel-backdrop:not([hidden]) {
+    position: fixed;
+    z-index: 90;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: rgba(0, 0, 0, 0.62);
+  }
+  .ai-panel-backdrop[hidden] { display: none !important; }
+  .panel-ai.ai-panel-open {
+    position: fixed;
+    z-index: 100;
+    inset: auto 12px calc(12px + env(safe-area-inset-bottom));
+    display: flex;
+    width: auto;
+    height: min(78dvh, 680px);
+    max-height: calc(100dvh - 24px - env(safe-area-inset-bottom));
+    min-height: 0;
+    overflow: hidden;
+    padding: 0.9rem;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+  }
+  .panel-ai.ai-panel-open .panel-intro,
+  .panel-ai.ai-panel-open .suggested-section { display: none; }
+  .panel-ai.ai-panel-open .panel-header { flex: 0 0 auto; }
+  .panel-ai.ai-panel-open .chat-container { flex: 1 1 auto; min-height: 0; max-height: none; margin-bottom: 0.65rem; }
+  .panel-ai.ai-panel-open .ai-input-form { flex: 0 0 auto; }
+  .ai-panel-close { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid var(--border-color); border-radius: 50%; background: var(--bg-surface-alt); color: var(--text-primary); font-size: 1.4rem; line-height: 1; cursor: pointer; }
+  .ai-panel-visible { overflow: hidden; }
+  .ai-panel-visible .ai-floating-button { display: none; }
+}

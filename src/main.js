@@ -49,7 +49,13 @@ function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
 
   // Update meta theme-color for mobile browser toolbar
-  const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+  const mobileThemeToggle = document.getElementById('mobileThemeToggle');
+  const themeNames = { lacivert: 'Lacivert', altin: 'Altın', acik: 'Açık' };
+  if (mobileThemeToggle) {
+    const label = `Tema: ${themeNames[theme]}. Değiştirmek için dokun`;
+    mobileThemeToggle.setAttribute('aria-label', label);
+    mobileThemeToggle.setAttribute('title', label);
+  }  const metaThemeColor = document.querySelector('meta[name="theme-color"]');
   if (metaThemeColor) {
     const metaColors = {
       lacivert: '#0B1426',
@@ -144,6 +150,11 @@ function initNavLinks() {
       const href = link.getAttribute('href');
       if (!href || !href.startsWith('#')) return;
       e.preventDefault();
+      closeMobileMenu();
+      if (href === '#ai-asistan' && window.matchMedia('(max-width: 768px)').matches) {
+        openAssistantPanel();
+        return;
+      }
 
       if (href === '#piyasa') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1017,8 +1028,69 @@ function escapeHtml(str) {
 /**
  * Event Listeners Initialization
  */
+function closeMobileMenu() {
+  const menu = document.getElementById('mobileMenuPanel');
+  const toggle = document.getElementById('mobileMenuToggle');
+  menu?.classList.remove('is-open');
+  toggle?.setAttribute('aria-expanded', 'false');
+  toggle?.setAttribute('aria-label', 'Menüyü aç');
+}
+
+function openAssistantPanel() {
+  const panel = document.getElementById('ai-asistan');
+  const button = document.getElementById('aiFloatingButton');
+  const backdrop = document.getElementById('aiPanelBackdrop');
+  if (!panel) return;
+  panel.classList.add('ai-panel-open');
+  document.body.classList.add('ai-panel-visible');
+  if (button) button.setAttribute('aria-expanded', 'true');
+  if (backdrop) backdrop.hidden = false;
+  window.setTimeout(() => aiQuestionInput?.focus(), 120);
+}
+
+function closeAssistantPanel() {
+  const panel = document.getElementById('ai-asistan');
+  const button = document.getElementById('aiFloatingButton');
+  const backdrop = document.getElementById('aiPanelBackdrop');
+  panel?.classList.remove('ai-panel-open');
+  document.body.classList.remove('ai-panel-visible');
+  if (button) button.setAttribute('aria-expanded', 'false');
+  if (backdrop) backdrop.hidden = true;
+}
+
+function initMobileControls() {
+  const menu = document.getElementById('mobileMenuPanel');
+  const menuToggle = document.getElementById('mobileMenuToggle');
+  menuToggle?.addEventListener('click', () => {
+    const isOpen = menu?.classList.toggle('is-open') || false;
+    menuToggle.setAttribute('aria-expanded', String(isOpen));
+    menuToggle.setAttribute('aria-label', isOpen ? 'Menüyü kapat' : 'Menüyü aç');
+  });
+
+  document.addEventListener('click', event => {
+    if (!menu?.contains(event.target) && !menuToggle?.contains(event.target)) closeMobileMenu();
+  });
+  menu?.querySelectorAll('.theme-btn').forEach(button => button.addEventListener('click', closeMobileMenu));
+
+  document.getElementById('mobileThemeToggle')?.addEventListener('click', () => {
+    const themes = ['lacivert', 'altin', 'acik'];
+    const current = document.documentElement.getAttribute('data-theme') || 'lacivert';
+    setTheme(themes[(themes.indexOf(current) + 1) % themes.length]);
+  });
+
+  document.getElementById('aiFloatingButton')?.addEventListener('click', openAssistantPanel);
+  document.getElementById('aiPanelClose')?.addEventListener('click', closeAssistantPanel);
+  document.getElementById('aiPanelBackdrop')?.addEventListener('click', closeAssistantPanel);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      closeMobileMenu();
+      closeAssistantPanel();
+    }
+  });
+}
 function initEventListeners() {
   // Navigation Links
+  initMobileControls();
   initNavLinks();
 
   // AI Question Form Submit
