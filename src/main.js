@@ -885,6 +885,22 @@ function isGreeting(text) {
 
 
 
+const STOCK_NAME_STOP_WORDS = new Set(['anonim', 'sirketi', 'sanayi', 'ticaret', 'holding', 'as', 'grubu', 'turkiye', 'turk', 've', 'fabrikalari', 'yatirim', 'ortakligi', 'uzun', 'kisa', 'vade', 'vadeli', 'analiz', 'hisse', 'hissesi', 'fiyat', 'hareket', 'durum', 'yorum', 'bugun', 'nasil', 'icin', 'mi', 'ne']);
+
+function findMentionedStocks(question) {
+  const tokens = new Set(normalizeTurkish(question).split(' ').filter(Boolean));
+  const exactCodes = BIST_STOCKS.filter(stock => tokens.has(normalizeTurkish(stock.code)));
+  if (exactCodes.length) return exactCodes.slice(0, 3);
+
+  const tokenFrequency = new Map();
+  for (const stock of BIST_STOCKS) {
+    const uniqueNameTokens = new Set(normalizeTurkish(stock.name).split(' ').filter(token => token.length >= 3 && !STOCK_NAME_STOP_WORDS.has(token)));
+    for (const token of uniqueNameTokens) tokenFrequency.set(token, (tokenFrequency.get(token) || 0) + 1);
+  }
+  return BIST_STOCKS.filter(stock => normalizeTurkish(stock.name).split(' ').some(token =>
+    token.length >= 3 && !STOCK_NAME_STOP_WORDS.has(token) && tokenFrequency.get(token) === 1 && tokens.has(token)
+  )).slice(0, 3);
+}
 async function handleUserQuery(questionText, extraContext = {}) {
   if (!questionText || !questionText.trim()) return;
   const cleanQuestion = questionText.trim();
@@ -894,22 +910,40 @@ async function handleUserQuery(questionText, extraContext = {}) {
   if (submitButton) submitButton.disabled = true;
   appendChatMessage('assistant', 'Güncel piyasa ve haber bağlamı inceleniyor…', true);
   try {
+    const mentionedStocks = findMentionedStocks(cleanQuestion);
+    let stocksForAI = currentStock ? [currentStock] : [];
+    let newsForAI = extraContext.news || currentNews.slice(0, 5);
+    if (mentionedStocks.length) {
+      const requestedTimeframe = /uzun vade|orta vade|ayl[ıi]k|1\s*ay/i.test(normalizeTurkish(cleanQuestion)) ? '1mo' : currentTimeframe;
+      const fetched = await Promise.all(mentionedStocks.map(async stock => {
+        const [marketResult, newsResult] = await Promise.allSettled([
+          getJson(`/api/market?symbol=${encodeURIComponent(stock.code)}&timeframe=${encodeURIComponent(requestedTimeframe)}`),
+          extraContext.news ? Promise.resolve({ items: extraContext.news }) : getJson(`/api/news?symbol=${encodeURIComponent(stock.code)}`)
+        ]);
+        const market = marketResult.status === 'fulfilled' ? marketResult.value : { symbol: stock.code, name: stock.name, candles: [] };
+        const relatedNews = newsResult.status === 'fulfilled' ? (newsResult.value.items || []).map(item => ({ ...item, symbol: stock.code })) : [];
+        return { market, relatedNews };
+      }));
+      stocksForAI = fetched.map(({ market }) => market);
+      newsForAI = fetched.flatMap(({ relatedNews }) => relatedNews).slice(0, 5);
+    }
     const context = {
-      stock: currentStock ? {
-        symbol: currentStock.symbol,
-        name: currentStock.name,
-        price: currentStock.price,
-        currency: currentStock.currency,
-        changePercent: currentStock.changePercent,
-        dayHigh: currentStock.dayHigh,
-        dayLow: currentStock.dayLow,
-        previousClose: currentStock.previousClose,
-        volume: currentStock.volume,
-        asOf: currentStock.asOf,
-        timeframe: currentTimeframe,
-        recentCandles: currentStock.candles.slice(-12).map(({ timestamp, open, high, low, close, volume }) => ({ time: timestamp, open, high, low, close, volume }))
-      } : null,
-      news: extraContext.news || currentNews.slice(0, 5)
+      stocks: stocksForAI.map(stock => ({
+        symbol: stock.symbol,
+        name: stock.name,
+        price: stock.price,
+        currency: stock.currency,
+        changePercent: stock.changePercent,
+        dayHigh: stock.dayHigh,
+        dayLow: stock.dayLow,
+        previousClose: stock.previousClose,
+        volume: stock.volume,
+        asOf: stock.asOf,
+        timeframe: mentionedStocks.length ? (/uzun vade|orta vade|ayl[ıi]k|1\s*ay/i.test(normalizeTurkish(cleanQuestion)) ? '1mo' : currentTimeframe) : currentTimeframe,
+        recentCandles: (stock.candles || []).slice(-12).map(({ timestamp, open, high, low, close, volume }) => ({ time: timestamp, open, high, low, close, volume }))
+      })),
+      requestedSymbols: mentionedStocks.map(stock => stock.code),
+      news: newsForAI
     };
     const payload = await getJson('/api/assistant', {
       method: 'POST',
