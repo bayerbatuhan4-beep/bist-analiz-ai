@@ -38,9 +38,15 @@ export default async function handler(request, response) {
         publishedAt: Number.isNaN(date.getTime()) ? null : date.toISOString()
       };
     }).filter(item => item.title && /^https:\/\//.test(item.url))
-      .sort((a, b) => (Date.parse(b.publishedAt || '') || 0) - (Date.parse(a.publishedAt || '') || 0))
-      .slice(0, 15);
-    return response.status(200).json({ items, source: 'Google News RSS', updatedAt: new Date().toISOString() });
+      .sort((a, b) => (Date.parse(b.publishedAt || '') || 0) - (Date.parse(a.publishedAt || '') || 0));
+    const seenTitles = new Set();
+    const uniqueItems = items.filter(item => {
+      const normalizedTitle = item.title.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('tr-TR').replace(/[^a-z0-9]/g, '');
+      if (!normalizedTitle || seenTitles.has(normalizedTitle)) return false;
+      seenTitles.add(normalizedTitle);
+      return true;
+    }).slice(0, 15);
+    return response.status(200).json({ items: uniqueItems, source: 'Google News RSS', updatedAt: new Date().toISOString() });
   } catch (error) {
     return response.status(502).json({ error: error.message || 'Haber akışı şu anda alınamıyor.' });
   }

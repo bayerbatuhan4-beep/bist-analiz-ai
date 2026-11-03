@@ -210,7 +210,9 @@ async function renderTicker() {
     tickerContainer.innerHTML = quotes.map(item => {
       if (!Number.isFinite(item.price)) return '';
       const up = (item.changePercent ?? 0) >= 0;
-      return `<div class="ticker-item"><span class="ticker-name">${TICKER_NAMES[item.symbol]}:</span><span class="ticker-val">${formatPrice(item.price, item.currency || 'TRY')}</span><span class="ticker-chg ${up ? 'up' : 'down'}">${formatChange(item.changePercent)}</span></div>`;
+      const time = item.asOf ? new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' }).format(new Date(item.asOf)) : '—';
+      const fullTime = item.asOf ? formatDate(item.asOf) : 'zaman bilgisi yok';
+      return `<div class="ticker-item" title="${escapeHtml(`Yahoo Finance · Veri zamanı ${fullTime} · Gecikmeli olabilir`)}"><span class="ticker-name">${TICKER_NAMES[item.symbol] || escapeHtml(item.symbol)}:</span><span class="ticker-val">${formatPrice(item.price, item.currency || 'TRY')}</span><span class="ticker-chg ${up ? 'up' : 'down'}">${formatChange(item.changePercent)}</span><time class="ticker-time" datetime="${item.asOf ? new Date(item.asOf).toISOString() : ''}">Veri ${time}</time></div>`;
     }).join('') || '<span class="data-loading">Piyasa verisi şu an kullanılamıyor.</span>';
   } catch (error) {
     tickerContainer.innerHTML = `<span class="data-loading">${escapeHtml(error.message)}</span>`;
@@ -320,7 +322,7 @@ async function updateStockDisplay(symbolKey, customName) {
       }))
     };
     if (stockNameDisplay) stockNameDisplay.textContent = found?.name || payload.name || displayName;
-    if (stockDemoBadge) stockDemoBadge.textContent = `Kaynak: ${payload.source} · ${formatDate(payload.asOf)}`;
+    if (stockDemoBadge) stockDemoBadge.textContent = `${payload.source} · gecikmeli olabilir`;
     if (stockPriceContainer) stockPriceContainer.classList.remove('hidden');
     if (stockPriceDisplay) stockPriceDisplay.textContent = formatPrice(payload.price, payload.currency);
     const up = (payload.changePercent ?? 0) >= 0;
@@ -355,6 +357,39 @@ async function updateStockDisplay(symbolKey, customName) {
 function formatDate(timestamp) {
   if (!timestamp) return 'zaman bilgisi yok';
   return new Intl.DateTimeFormat('tr-TR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Istanbul' }).format(new Date(timestamp));
+}
+
+function formatRelativeAge(timestamp) {
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - Date.parse(timestamp)) / 60000));
+  if (!Number.isFinite(elapsedMinutes)) return 'Yayın zamanı yok';
+  if (elapsedMinutes < 60) return `${elapsedMinutes} dk önce`;
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 48) return `${elapsedHours} sa önce`;
+  return `${Math.floor(elapsedHours / 24)} gün önce`;
+}
+
+function summarizeCandles(candles = []) {
+  const points = candles.filter(candle => Number.isFinite(candle.close) && candle.close > 0);
+  if (!points.length) return null;
+  const first = points[0];
+  const last = points.at(-1);
+  const average = period => {
+    const closes = points.slice(-period).map(candle => candle.close);
+    return closes.length === period ? closes.reduce((total, close) => total + close, 0) / period : null;
+  };
+  return {
+    pointCount: points.length,
+    firstClose: first.close,
+    firstTime: first.timestamp,
+    lastClose: last.close,
+    lastTime: last.timestamp,
+    periodReturnPercent: first.close ? ((last.close - first.close) / first.close) * 100 : null,
+    periodHigh: Math.max(...points.map(candle => candle.high).filter(Number.isFinite)),
+    periodLow: Math.min(...points.map(candle => candle.low).filter(Number.isFinite)),
+    sma20: average(20),
+    sma50: average(50),
+    averageVolume: points.reduce((sum, candle) => sum + (Number.isFinite(candle.volume) ? candle.volume : 0), 0) / points.length
+  };
 }
 
 function periodChange(candles) {
@@ -581,7 +616,7 @@ function renderCandleChart(stock, timeframe) {
   const getVolH = (vol) => Math.max(2, (vol / maxVol) * volHeight);
 
   const candleSpacing = chartWidth / candles.length;
-  const candleWidth = Math.max(5, Math.min(16, candleSpacing * 0.65));
+  const candleWidth = Math.max(1, Math.min(16, candleSpacing * 0.65));
   const getX = (i) => padLeft + (i + 0.5) * candleSpacing;
 
   // Horizontal Price Grid Lines
@@ -602,11 +637,11 @@ function renderCandleChart(stock, timeframe) {
     <text x="${padLeft - 8}" y="${volTop + 10}" fill="var(--chart-grid-text)" font-size="9" text-anchor="end" font-family="sans-serif">Hacim</text>
   `;
 
-  // Moving Average SMA-5
-  const maPeriod = 5;
+  // Use a slower average on annual charts to avoid a noisy five-day line.
+  const maPeriod = Math.min(timeframe === '1y' ? 20 : 5, candles.length);
   const maPoints = [];
-  for (let i = 0; i < candles.length; i++) {
-    const startIdx = Math.max(0, i - maPeriod + 1);
+  for (let i = maPeriod - 1; i < candles.length; i++) {
+    const startIdx = i - maPeriod + 1;
     const slice = candles.slice(startIdx, i + 1);
     const avg = slice.reduce((sum, c) => sum + c.close, 0) / slice.length;
     maPoints.push({ x: getX(i), y: getY(avg) });
@@ -662,7 +697,7 @@ function renderCandleChart(stock, timeframe) {
       <!-- Indicators Header Legend -->
       <g class="chart-legend">
         <circle cx="55" cy="14" r="3.5" fill="var(--chart-ma)" />
-        <text x="63" y="17" fill="var(--text-muted)" font-size="9.5" font-family="sans-serif">HO(5) Hareketli Ortalama</text>
+        <text x="63" y="17" fill="var(--text-muted)" font-size="9.5" font-family="sans-serif">HO(${maPeriod}) Hareketli Ortalama</text>
         <rect x="200" y="10.5" width="7" height="7" fill="var(--color-green)" rx="1" />
         <text x="211" y="17" fill="var(--text-muted)" font-size="9.5" font-family="sans-serif">Yükseliş</text>
         <rect x="260" y="10.5" width="7" height="7" fill="var(--color-red)" rx="1" />
@@ -883,7 +918,7 @@ async function renderNews(symbol = '') {
       time.className = 'news-time';
       time.dateTime = item.publishedAt || '';
       const ageDays = item.publishedAt ? Math.max(0, (Date.now() - Date.parse(item.publishedAt)) / 86400000) : null;
-      time.textContent = item.publishedAt ? `${formatDate(item.publishedAt)}${ageDays > 7 ? ' · Eski haber' : ''}` : 'Yayın zamanı yok';
+      time.textContent = item.publishedAt ? `${formatDate(item.publishedAt)} · ${formatRelativeAge(item.publishedAt)}${ageDays > 2 ? ' · Eski haber' : ''}` : 'Yayın zamanı yok';
       meta.append(source, time);
       const link = document.createElement('a');
       link.className = 'news-title';
@@ -1060,10 +1095,12 @@ async function handleUserQuery(questionText, extraContext = {}) {
         asOf: stock.asOf,
         source: stock.source || 'Yahoo Finance',
         timeframe: mentionedStocks.length ? (/uzun vade|yillik|1\s*yil/i.test(normalizeTurkish(cleanQuestion)) ? '1y' : /orta vade|ayl[ıi]k|1\s*ay/i.test(normalizeTurkish(cleanQuestion)) ? '1mo' : currentTimeframe) : currentTimeframe,
+        periodSummary: summarizeCandles(stock.candles || []),
         recentCandles: (stock.candles || []).slice(-12).map(({ timestamp, open, high, low, close, volume }) => ({ time: timestamp, open, high, low, close, volume }))
       })),
       requestedSymbols: mentionedStocks.map(stock => stock.code),
-      news: newsForAI
+      news: newsForAI,
+      kapFinancialData: typeof extraContext.financialData === 'string' ? extraContext.financialData.slice(0, 12000) : ''
     };
     const payload = await getJson('/api/assistant', {
       method: 'POST',
@@ -1211,6 +1248,30 @@ function initEventListeners() {
       }
     });
   }
+
+  const kapDataInput = document.getElementById('kapDataInput');
+  const kapDataCounter = document.getElementById('kapDataCounter');
+  const kapAnalyzeButton = document.getElementById('kapAnalyzeButton');
+  kapDataInput?.addEventListener('input', () => {
+    if (kapDataCounter) kapDataCounter.textContent = `${kapDataInput.value.length.toLocaleString('tr-TR')} / 12.000`;
+  });
+  kapAnalyzeButton?.addEventListener('click', async () => {
+    const financialData = kapDataInput?.value.trim() || '';
+    if (!financialData) {
+      kapDataInput?.focus();
+      if (kapDataCounter) kapDataCounter.textContent = 'Önce KAP metnini yapıştır';
+      return;
+    }
+    kapAnalyzeButton.disabled = true;
+    kapAnalyzeButton.textContent = 'Özet hazırlanıyor…';
+    const symbol = currentStock?.symbol || currentStockKey;
+    try {
+      await handleUserQuery(`${symbol} için aşağıdaki KAP finansal verilerini dönem ve birimleri gözeterek özetle; gelir, kârlılık, borç ve nakit akışındaki değişimleri yalnızca veride varsa açıkla. Eksik alanları ve verinin yatırım kararı için sınırlarını belirt.`, { financialData });
+    } finally {
+      kapAnalyzeButton.disabled = false;
+      kapAnalyzeButton.textContent = 'AI ile özetle';
+    }
+  });
 
   // Quick Chips Click Event
   if (chipsList) {

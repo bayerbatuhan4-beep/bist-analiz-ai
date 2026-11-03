@@ -42,7 +42,7 @@
 
       <!-- Ticker Summary -->
       <div class="ticker-bar" aria-label="Piyasa özeti">
-        <span class="data-source-badge">Gecikmeli veri</span>
+        <span class="data-source-badge" title="Yahoo Finance verileri gecikmeli olabilir. Her kutudaki saat, sağlayıcının son veri zamanıdır.">Gecikmeli veri</span>
         <div class="ticker-items" id="tickerItemsContainer">
           <!-- Loaded from the market-data function -->
         </div>
@@ -188,6 +188,15 @@
             </div>
           </form>
 
+          <details class="beginner-guide">
+            <summary>Yeni başlayanlar için: bu ekran nasıl okunur?</summary>
+            <div class="beginner-guide-body">
+              <p><strong>Fiyat değişimi</strong> günlük değişimi gösterir; seçtiğin grafik aralığının getirisiyle aynı şey değildir.</p>
+              <p><strong>Detaylı grafik</strong> mumları, işlem hacmini ve kısa hareketli ortalamayı gösterir. Geçmiş hareket geleceği garanti etmez.</p>
+              <p>Fiyatlar Yahoo Finance’ten gelir ve gecikmeli olabilir. Her fiyatın veri zamanını kontrol et.</p>
+            </div>
+          </details>
+
           <div class="chips-container" role="group" aria-label="Hızlı Hisse Seçimi">
             <div class="chips-header-row">
               <span class="chips-title">Hızlı Hisse Seçimi (20 BIST Hissesi):</span>
@@ -238,6 +247,8 @@
             </div>
           </div>
 
+          <p class="chart-guide">Basit görünüm fiyatı gösterir. Detaylı görünümde mumlar, hacim çubukları ve 1 yıllık grafikte 20 dönemlik hareketli ortalama bulunur.</p>
+
           <!-- Interactive SVG Chart Area -->
           <div class="chart-wrapper" id="chartWrapper">
             <div class="chart-canvas-area" id="svgChartContainer" role="img" aria-label="Hisse fiyat grafiği">
@@ -254,19 +265,30 @@
               <h3 id="comparisonHeading">BIST 100 ile performans kıyası</h3>
               <button type="button" class="comparison-toggle" id="comparisonToggle" aria-expanded="false">Kıyasla</button>
             </div>
-            <p class="comparison-help">Seçili zaman aralığında iki fiyat serisinin değişimini karşılaştırır.</p>
+            <p class="comparison-help">İlk ve son kapanışa göre fiyat değişimi; temettüler hesaba katılmaz, geçmiş performans gelecek sonucu göstermez.</p>
             <div class="comparison-result hidden" id="comparisonResult" aria-live="polite"></div>
           </section>
 
           <section class="kap-card" aria-labelledby="kapHeading">
             <div>
               <h3 id="kapHeading">KAP şirket bilgileri</h3>
-              <p>Resmî bildirimleri ve finansal tabloları KAP’ta şirket koduyla arayın.</p>
+              <p>KAP’taki bildirim ve tabloları ücretsiz aç. İstersen tabloyu aşağıya yapıştırıp AI’dan özet iste.</p>
             </div>
             <div class="kap-links">
               <a href="https://www.kap.org.tr/tr/sirketler/ALL" target="_blank" rel="noopener noreferrer">Şirket bildirimlerini aç</a>
               <a href="https://www.kap.org.tr/tr/kalem-karsilastirma" target="_blank" rel="noopener noreferrer">Finansal tabloları aç</a>
             </div>
+            <details class="kap-paste-details">
+              <summary>KAP tablosunu yapıştırıp AI ile özetle</summary>
+              <div class="kap-paste-body">
+                <label class="kap-input-label" for="kapDataInput">Dönem ve birimiyle birlikte kopyaladığın tablo veya bildirimi yapıştır</label>
+                <textarea id="kapDataInput" class="kap-data-input" rows="5" maxlength="12000" placeholder="Örnek: 2025/12 satışlar 1.200 mn TL, net kâr 180 mn TL… Dönem ve birimi de ekle."></textarea>
+                <div class="kap-submit-row">
+                  <span id="kapDataCounter" class="kap-data-counter" aria-live="polite">0 / 12.000</span>
+                  <button type="button" class="comparison-toggle" id="kapAnalyzeButton">AI ile özetle</button>
+                </div>
+              </div>
+            </details>
           </section>
 
           <!-- Loading and no data state -->
