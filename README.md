@@ -1,8 +1,8 @@
-\# BIST Analiz AI
+# Piyasa Pusulası
 
 
 
-Borsa İstanbul için gecikmeli fiyat grafikleri, kaynak bağlantılı haberler ve Gemini destekli bir asistan sunan Vite/Vercel paneli.
+Borsa İstanbul için gecikmeli fiyat grafikleri, kaynak bağlantılı haberler ve Gemini destekli asistan sunan Piyasa Pusulası.
 
 
 

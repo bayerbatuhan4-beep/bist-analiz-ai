@@ -1004,7 +1004,7 @@ function appendChatMessage(sender, text, pending = false) {
   } else {
     messageDiv.innerHTML = `
       <div class="message-meta">
-        <span class="sender-name">BIST AI Asistanı</span>
+        <span class="sender-name">Pusula Asistanı</span>
         <span class="demo-tag">Gemini yanıtı</span>
       </div>
       <p class="message-text">${escapeHtml(text)}</p>

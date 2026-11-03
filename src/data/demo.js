@@ -1,5 +1,5 @@
 /**
- * BIST Analiz AI - Demo Veri Havuzu
+ * Piyasa Pusulası - Demo Veri Havuzu
  * Tüm veriler simüle edilmiş demo verilerdir; gerçek piyasa verisi değildir.
  */
 
@@ -973,7 +973,7 @@ export const SUGGESTED_QUESTIONS = [
 export const CANNED_AI_RESPONSES = {
   greeting: `Demo yanıt: Merhaba! Borsa İstanbul piyasaları ve hisse senetleri hakkındaki sorularınızı yanıtlamak için buradayım. Size bugün nasıl yardımcı olabilirim?`,
 
-  fallback: `Demo yanıt: Bu soru şu anki demo sürümümüzde yer almamaktadır. BIST Analiz AI'nın gerçek yapay zeka ve canlı veri entegrasyonu sonraki sürümlerde aktif olacaktır. Şimdilik THYAO, ASELS, GARAN, EREGL gibi hisseleri ve örnek soruları inceleyebilirsiniz.`,
+  fallback: `Demo yanıt: Bu soru şu anki demo sürümümüzde yer almamaktadır. Piyasa Pusulası'nın gerçek yapay zeka ve canlı veri entegrasyonu sonraki sürümlerde aktif olacaktır. Şimdilik THYAO, ASELS, GARAN, EREGL gibi hisseleri ve örnek soruları inceleyebilirsiniz.`,
 
   bist100: `Demo yanıt: BIST 100 endeksi gün içerisinde 9.150 - 9.200 direnç bandını test etmektedir. İşlem hacminin 110 milyar TL üzerine çıkması ve bankacılık ile ulaştırma hisselerindeki alımlar yükselişi desteklemektedir. Kısa vadede 9.000 puan ana destek, 9.250 puan ise ilk güçlü direnç seviyesidir.`,
 

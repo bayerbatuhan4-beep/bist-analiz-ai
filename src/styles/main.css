@@ -1,5 +1,5 @@
 /* ==========================================================================
-   BIST Analiz AI - Multi-Theme Modern Finance Dashboard Styles
+   Piyasa Pusulası - Multi-Theme Modern Finance Dashboard Styles
    Themes:
    - Lacivert (Default): #0B1426 background, #111C33 cards, #38BDF8 accent
    - Altın:              #0F1115 background, #181B22 cards, #E0B04C accent
@@ -810,7 +810,7 @@ section[id], .panel[id] {
   margin-bottom: 1rem;
 }
 
-/* ----------------- Left Panel: BIST AI Asistanı ----------------- */
+/* ----------------- Left Panel: Pusula Asistanı ----------------- */
 .panel-ai {
   display: flex;
   flex-direction: column;
