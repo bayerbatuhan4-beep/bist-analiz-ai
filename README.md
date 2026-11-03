@@ -2,7 +2,7 @@
 
 
 
-Borsa İstanbul için gecikmeli fiyat grafikleri, kaynak bağlantılı haberler ve OpenAI destekli bir asistan sunan Vite/Vercel paneli.
+Borsa İstanbul için gecikmeli fiyat grafikleri, kaynak bağlantılı haberler ve Gemini destekli bir asistan sunan Vite/Vercel paneli.
 
 
 
@@ -44,7 +44,7 @@ Borsa İstanbul'u öğrenmek ve takip etmek isteyen bireysel yatırımcı adayla
 
 \- Üç renk teması: Lacivert, Altın, Açık (seçim tarayıcıda hatırlanır)
 
-\- OpenAI Responses API ile çalışan piyasa asistanı (sunucu tarafında API anahtarı gerekir)
+\- Gemini API ile çalışan piyasa asistanı (sunucu tarafında API anahtarı gerekir)
 
 \- Mobil uyumlu düzen, klavye ile erişilebilirlik
 
@@ -82,7 +82,7 @@ npm run build
 
 
 
-`npx vercel dev` komutu arayüzü ve api/ uç noktalarını birlikte çalıştırır. OpenAI için yerelde OPENAI_API_KEY ortam değişkenini tanımlayın.
+`npx vercel dev` komutu arayüzü ve api/ uç noktalarını birlikte çalıştırır. Gemini için yerelde GEMINI_API_KEY ortam değişkenini tanımlayın.
 
 
 

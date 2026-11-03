@@ -939,7 +939,7 @@ function appendChatMessage(sender, text, pending = false) {
     messageDiv.innerHTML = `
       <div class="message-meta">
         <span class="sender-name">BIST AI Asistanı</span>
-        <span class="demo-tag">OpenAI yanıtı</span>
+        <span class="demo-tag">Gemini yanıtı</span>
       </div>
       <p class="message-text">${escapeHtml(text)}</p>
     `;
