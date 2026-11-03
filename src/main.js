@@ -895,7 +895,20 @@ async function handleUserQuery(questionText, extraContext = {}) {
   appendChatMessage('assistant', 'Güncel piyasa ve haber bağlamı inceleniyor…', true);
   try {
     const context = {
-      stock: currentStock ? { symbol: currentStock.symbol, name: currentStock.name, price: currentStock.price, currency: currentStock.currency, changePercent: currentStock.changePercent, asOf: currentStock.asOf } : null,
+      stock: currentStock ? {
+        symbol: currentStock.symbol,
+        name: currentStock.name,
+        price: currentStock.price,
+        currency: currentStock.currency,
+        changePercent: currentStock.changePercent,
+        dayHigh: currentStock.dayHigh,
+        dayLow: currentStock.dayLow,
+        previousClose: currentStock.previousClose,
+        volume: currentStock.volume,
+        asOf: currentStock.asOf,
+        timeframe: currentTimeframe,
+        recentCandles: currentStock.candles.slice(-12).map(({ timestamp, open, high, low, close, volume }) => ({ time: timestamp, open, high, low, close, volume }))
+      } : null,
       news: extraContext.news || currentNews.slice(0, 5)
     };
     const payload = await getJson('/api/assistant', {
