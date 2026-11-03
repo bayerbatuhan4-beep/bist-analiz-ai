@@ -1576,6 +1576,70 @@ section[id], .panel[id] {
   gap: 0.65rem;
 }
 
+.comparison-card, .kap-card {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+}
+
+.comparison-heading-row, .kap-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.comparison-heading-row h3, .kap-card h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+}
+
+.comparison-help, .kap-card p {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+
+.comparison-toggle, .kap-links a {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  padding: 0.38rem 0.65rem;
+  font-size: 0.72rem;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.comparison-result {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.comparison-value {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.55rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.comparison-value span, .comparison-result small { color: var(--text-muted); font-size: 0.66rem; }
+.comparison-value strong { font-size: 0.88rem; }
+.comparison-up { color: var(--color-green); }
+.comparison-down { color: var(--color-red); }
+.comparison-result small { grid-column: 1 / -1; }
+.kap-card { align-items: flex-start; }
+.kap-links { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end; }
+.kap-links a:hover, .comparison-toggle:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
 .metric-card {
   background: var(--bg-surface-alt);
   border: 1px solid var(--border-color);
@@ -1661,10 +1725,16 @@ section[id], .panel[id] {
   border-radius: var(--radius-md);
   padding: 0.85rem;
   transition: all 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+  display: block;
 }
+
+.news-details { width: 100%; }
+.news-summary { list-style: none; cursor: pointer; display: flex; flex-direction: column; gap: 0.45rem; }
+.news-summary::-webkit-details-marker { display: none; }
+.news-details[open] .news-summary { padding-bottom: 0.55rem; border-bottom: 1px solid var(--border-color); }
+.news-disclosure-hint { color: var(--color-accent); font-size: 0.67rem; }
+.news-body { padding-top: 0.55rem; }
+.news-description { margin: 0 0 0.5rem; color: var(--text-secondary); font-size: 0.76rem; line-height: 1.5; }
 
 .news-item:hover {
   background: var(--bg-surface-elevated);
@@ -1704,8 +1774,12 @@ section[id], .panel[id] {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   margin-top: 0.2rem;
 }
+
+.news-open-link { font-size: 0.72rem; color: var(--text-muted); }
 
 .news-ask-ai-btn {
   background: transparent;
@@ -1770,6 +1844,11 @@ section[id], .panel[id] {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
 }
+
+.footer-right { display: flex; align-items: center; gap: 0.5rem; }
+.footer-email { color: var(--text-muted); font-size: 0.7rem; text-decoration: none; }
+.footer-email:hover { color: var(--color-accent); }
+.answer-sources { margin: 0.25rem 0.8rem 0.65rem; color: var(--text-muted); font-size: 0.64rem; line-height: 1.4; }
 
 /* ----------------- Animations ----------------- */
 @keyframes fadeIn {
@@ -1927,6 +2006,12 @@ section[id], .panel[id] {
   .nav-links::-webkit-scrollbar { display: none; }
   .nav-link { flex: 0 0 auto; min-height: 38px; padding: 0.45rem 0.6rem; font-size: 0.77rem; }
   .dashboard-container { padding: 0.65rem; }
+  .comparison-card, .kap-card { padding: 0.7rem; }
+  .kap-card { flex-direction: column; }
+  .kap-links { justify-content: flex-start; }
+  .comparison-result { grid-template-columns: 1fr; }
+  .comparison-result small { grid-column: 1; }
+  .footer-right { flex-wrap: wrap; }
   .dashboard-grid { gap: 0.75rem; }
   .panel, .chart-card, .search-box-container { padding: 0.85rem; border-radius: var(--radius-md); }
   .panel-ai, .panel-news { min-height: 0; }

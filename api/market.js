@@ -7,7 +7,8 @@ const SYMBOLS = {
 const INTERVALS = {
   '1d': { range: '1d', interval: '5m' },
   '5d': { range: '5d', interval: '30m' },
-  '1mo': { range: '1mo', interval: '1d' }
+  '1mo': { range: '1mo', interval: '1d' },
+  '1y': { range: '1y', interval: '1d' }
 };
 
 async function getYahooChart(symbol, timeframe) {

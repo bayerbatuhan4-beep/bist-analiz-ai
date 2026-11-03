@@ -309,7 +309,13 @@ async function updateStockDisplay(symbolKey, customName) {
       ...payload,
       candles: payload.candles.map(c => ({
         ...c,
-        label: new Intl.DateTimeFormat('tr-TR', currentTimeframe === '1mo' ? { day: '2-digit', month: '2-digit', timeZone: 'Europe/Istanbul' } : { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' }).format(new Date(c.timestamp)),
+        label: new Intl.DateTimeFormat('tr-TR', currentTimeframe === '1y'
+          ? { month: 'short', year: '2-digit', timeZone: 'Europe/Istanbul' }
+          : currentTimeframe === '1mo'
+            ? { day: '2-digit', month: '2-digit', timeZone: 'Europe/Istanbul' }
+            : currentTimeframe === '5d'
+              ? { day: '2-digit', month: '2-digit', hour: '2-digit', timeZone: 'Europe/Istanbul' }
+              : { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' }).format(new Date(c.timestamp)),
         isUp: c.close >= c.open
       }))
     };
@@ -332,6 +338,9 @@ async function updateStockDisplay(symbolKey, customName) {
     if (chartWrapper) chartWrapper.classList.remove('hidden');
     if (noDataCard) noDataCard.classList.add('hidden');
     renderActiveChart();
+    if (document.getElementById('comparisonToggle')?.getAttribute('aria-expanded') === 'true') {
+      renderPerformanceComparison();
+    }
   } catch (error) {
     if (requestId !== stockRequestId) return;
     if (retainedStock) {
@@ -346,6 +355,47 @@ async function updateStockDisplay(symbolKey, customName) {
 function formatDate(timestamp) {
   if (!timestamp) return 'zaman bilgisi yok';
   return new Intl.DateTimeFormat('tr-TR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Istanbul' }).format(new Date(timestamp));
+}
+
+function periodChange(candles) {
+  const first = candles.find(candle => Number.isFinite(candle.close) && candle.close > 0);
+  const last = [...candles].reverse().find(candle => Number.isFinite(candle.close) && candle.close > 0);
+  return first && last ? ((last.close - first.close) / first.close) * 100 : null;
+}
+
+async function renderPerformanceComparison() {
+  const result = document.getElementById('comparisonResult');
+  if (!result || !currentStock) return;
+  result.classList.remove('hidden');
+  result.textContent = 'Karşılaştırma verisi alınıyor…';
+  try {
+    const index = await getJson(`/api/market?symbol=BIST100&timeframe=${encodeURIComponent(currentTimeframe)}`);
+    const stockChange = periodChange(currentStock.candles || []);
+    const indexChange = periodChange(index.candles || []);
+    if (stockChange === null || indexChange === null) throw new Error('Karşılaştırma için yeterli fiyat noktası yok.');
+    const relative = stockChange - indexChange;
+    result.replaceChildren();
+    [
+      [`${currentStock.symbol} değişimi`, stockChange],
+      ['BIST 100 değişimi', indexChange],
+      ['Endekse göre fark', relative]
+    ].forEach(([label, value]) => {
+      const item = document.createElement('div');
+      item.className = 'comparison-value';
+      const name = document.createElement('span');
+      name.textContent = label;
+      const amount = document.createElement('strong');
+      amount.className = Number(value) >= 0 ? 'comparison-up' : 'comparison-down';
+      amount.textContent = `${Number(value) >= 0 ? '+' : ''}${Number(value).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+      item.append(name, amount);
+      result.append(item);
+    });
+    const note = document.createElement('small');
+    note.textContent = `Dönem: ${currentTimeframe.toUpperCase()} · Yahoo Finance · ${formatDate(index.asOf)}`;
+    result.append(note);
+  } catch (error) {
+    result.textContent = error.message;
+  }
 }
 
 /**
@@ -816,6 +866,10 @@ async function renderNews(symbol = '') {
     currentNews.forEach(item => {
       const li = document.createElement('li');
       li.className = 'news-item';
+      const details = document.createElement('details');
+      details.className = 'news-details';
+      const summary = document.createElement('summary');
+      summary.className = 'news-summary';
       const meta = document.createElement('div');
       meta.className = 'news-meta-row';
       const source = document.createElement('span');
@@ -824,7 +878,8 @@ async function renderNews(symbol = '') {
       const time = document.createElement('time');
       time.className = 'news-time';
       time.dateTime = item.publishedAt || '';
-      time.textContent = item.publishedAt ? formatDate(item.publishedAt) : 'Yayın zamanı yok';
+      const ageDays = item.publishedAt ? Math.max(0, (Date.now() - Date.parse(item.publishedAt)) / 86400000) : null;
+      time.textContent = item.publishedAt ? `${formatDate(item.publishedAt)}${ageDays > 7 ? ' · Eski haber' : ''}` : 'Yayın zamanı yok';
       meta.append(source, time);
       const link = document.createElement('a');
       link.className = 'news-title';
@@ -832,6 +887,19 @@ async function renderNews(symbol = '') {
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       link.textContent = item.title;
+      const disclosure = document.createElement('span');
+      disclosure.className = 'news-disclosure-hint';
+      disclosure.textContent = 'Ayrıntı ve AI yorumu için dokunun';
+      summary.append(meta, link, disclosure);
+      details.append(summary);
+      const body = document.createElement('div');
+      body.className = 'news-body';
+      if (item.description) {
+        const description = document.createElement('p');
+        description.className = 'news-description';
+        description.textContent = item.description;
+        body.append(description);
+      }
       const actions = document.createElement('div');
       actions.className = 'news-actions';
       const ask = document.createElement('button');
@@ -843,8 +911,16 @@ async function renderNews(symbol = '') {
         const panel = document.getElementById('ai-asistan');
         panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
-      actions.append(ask);
-      li.append(meta, link, actions);
+      const openArticle = document.createElement('a');
+      openArticle.className = 'news-open-link';
+      openArticle.href = item.url;
+      openArticle.target = '_blank';
+      openArticle.rel = 'noopener noreferrer';
+      openArticle.textContent = 'Kaynak haberi aç';
+      actions.append(ask, openArticle);
+      body.append(actions);
+      details.append(body);
+      li.append(details);
       newsListContainer.append(li);
     });
   } catch (error) {
@@ -933,7 +1009,7 @@ async function handleUserQuery(questionText, extraContext = {}) {
     let stocksForAI = currentStock ? [currentStock] : [];
     let newsForAI = extraContext.news || currentNews.slice(0, 5);
     if (mentionedStocks.length) {
-      const requestedTimeframe = /uzun vade|orta vade|ayl[ıi]k|1\s*ay/i.test(normalizeTurkish(cleanQuestion)) ? '1mo' : currentTimeframe;
+      const requestedTimeframe = /uzun vade|yillik|1\s*yil/i.test(normalizeTurkish(cleanQuestion)) ? '1y' : /orta vade|ayl[ıi]k|1\s*ay/i.test(normalizeTurkish(cleanQuestion)) ? '1mo' : currentTimeframe;
       const fetched = await Promise.all(mentionedStocks.map(async stock => {
         const [marketResult, newsResult] = await Promise.allSettled([
           getJson(`/api/market?symbol=${encodeURIComponent(stock.code)}&timeframe=${encodeURIComponent(requestedTimeframe)}`),
@@ -958,7 +1034,8 @@ async function handleUserQuery(questionText, extraContext = {}) {
         previousClose: stock.previousClose,
         volume: stock.volume,
         asOf: stock.asOf,
-        timeframe: mentionedStocks.length ? (/uzun vade|orta vade|ayl[ıi]k|1\s*ay/i.test(normalizeTurkish(cleanQuestion)) ? '1mo' : currentTimeframe) : currentTimeframe,
+        source: stock.source || 'Yahoo Finance',
+        timeframe: mentionedStocks.length ? (/uzun vade|yillik|1\s*yil/i.test(normalizeTurkish(cleanQuestion)) ? '1y' : /orta vade|ayl[ıi]k|1\s*ay/i.test(normalizeTurkish(cleanQuestion)) ? '1mo' : currentTimeframe) : currentTimeframe,
         recentCandles: (stock.candles || []).slice(-12).map(({ timestamp, open, high, low, close, volume }) => ({ time: timestamp, open, high, low, close, volume }))
       })),
       requestedSymbols: mentionedStocks.map(stock => stock.code),
@@ -970,7 +1047,7 @@ async function handleUserQuery(questionText, extraContext = {}) {
       body: JSON.stringify({ question: cleanQuestion, context, history: chatHistory.slice(-8, -1) })
     });
     removePendingMessage();
-    appendChatMessage('assistant', payload.answer);
+    appendChatMessage('assistant', payload.answer, false, payload.sources || []);
     chatHistory.push({ role: 'assistant', content: payload.answer });
     chatHistory = chatHistory.slice(-12);
   } catch (error) {
@@ -988,7 +1065,7 @@ function removePendingMessage() {
 /**
  * Append Message to Chat Container
  */
-function appendChatMessage(sender, text, pending = false) {
+function appendChatMessage(sender, text, pending = false, sources = []) {
   if (!chatContainer) return;
 
   const messageDiv = document.createElement('div');
@@ -1009,6 +1086,12 @@ function appendChatMessage(sender, text, pending = false) {
       </div>
       <p class="message-text">${escapeHtml(text)}</p>
     `;
+    if (!pending && sources.length) {
+      const sourceNote = document.createElement('div');
+      sourceNote.className = 'answer-sources';
+      sourceNote.textContent = `Bağlam kaynakları: ${sources.map(source => `${source.name}${source.symbol ? ` · ${source.symbol}` : ''}${source.asOf ? ` · ${formatDate(source.asOf)}` : ''}`).join(' | ')}`;
+      messageDiv.append(sourceNote);
+    }
   }
 
   chatContainer.appendChild(messageDiv);
@@ -1133,7 +1216,7 @@ function initEventListeners() {
     });
   });
 
-  // Timeframe buttons (1G, 1H, 1A)
+  // Timeframe buttons (1G, 1H, 1A, 1Y)
   const timeframeButtons = document.querySelectorAll('.timeframe-btn');
   timeframeButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1142,6 +1225,16 @@ function initEventListeners() {
       currentTimeframe = btn.getAttribute('data-timeframe');
       updateStockDisplay(currentStockKey);
     });
+  });
+
+  const comparisonToggle = document.getElementById('comparisonToggle');
+  comparisonToggle?.addEventListener('click', async () => {
+    const result = document.getElementById('comparisonResult');
+    const expanded = comparisonToggle.getAttribute('aria-expanded') === 'true';
+    comparisonToggle.setAttribute('aria-expanded', String(!expanded));
+    comparisonToggle.textContent = expanded ? 'Kıyasla' : 'Yenile';
+    result?.classList.toggle('hidden', expanded);
+    if (!expanded) await renderPerformanceComparison();
   });
 
   // Stock Search Input Events (Turkish-aware, accent-insensitive autocomplete)

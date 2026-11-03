@@ -27,16 +27,19 @@ export default async function handler(request, response) {
     const feed = await fetch(url, { headers: { accept: 'application/rss+xml, application/xml' }, signal: AbortSignal.timeout(9000) });
     if (!feed.ok) throw new Error(`Haber kaynağı ${feed.status} döndürdü.`);
     const xml = (await feed.text()).slice(0, 1_000_000);
-    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].slice(0, 15).map(([, item]) => {
+    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].map(([, item]) => {
       const dateText = tag(item, 'pubDate');
       const date = new Date(dateText);
       return {
         title: tag(item, 'title'),
+        description: tag(item, 'description').slice(0, 500),
         url: tag(item, 'link'),
         source: tag(item, 'source') || 'Google News',
         publishedAt: Number.isNaN(date.getTime()) ? null : date.toISOString()
       };
-    }).filter(item => item.title && /^https:\/\//.test(item.url));
+    }).filter(item => item.title && /^https:\/\//.test(item.url))
+      .sort((a, b) => (Date.parse(b.publishedAt || '') || 0) - (Date.parse(a.publishedAt || '') || 0))
+      .slice(0, 15);
     return response.status(200).json({ items, source: 'Google News RSS', updatedAt: new Date().toISOString() });
   } catch (error) {
     return response.status(502).json({ error: error.message || 'Haber akışı şu anda alınamıyor.' });

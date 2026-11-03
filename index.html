@@ -233,6 +233,7 @@
                 <button type="button" class="timeframe-btn active" data-timeframe="1d" aria-label="1 gün">1G</button>
                 <button type="button" class="timeframe-btn" data-timeframe="5d" aria-label="1 hafta">1H</button>
                 <button type="button" class="timeframe-btn" data-timeframe="1mo" aria-label="1 ay">1A</button>
+                <button type="button" class="timeframe-btn" data-timeframe="1y" aria-label="1 yıl">1Y</button>
               </div>
             </div>
           </div>
@@ -247,6 +248,26 @@
             </div>
             <div class="chart-tooltip" id="chartTooltip" aria-hidden="true"></div>
           </div>
+
+          <section class="comparison-card" aria-labelledby="comparisonHeading">
+            <div class="comparison-heading-row">
+              <h3 id="comparisonHeading">BIST 100 ile performans kıyası</h3>
+              <button type="button" class="comparison-toggle" id="comparisonToggle" aria-expanded="false">Kıyasla</button>
+            </div>
+            <p class="comparison-help">Seçili zaman aralığında iki fiyat serisinin değişimini karşılaştırır.</p>
+            <div class="comparison-result hidden" id="comparisonResult" aria-live="polite"></div>
+          </section>
+
+          <section class="kap-card" aria-labelledby="kapHeading">
+            <div>
+              <h3 id="kapHeading">KAP şirket bilgileri</h3>
+              <p>Resmî bildirimleri ve finansal tabloları KAP’ta şirket koduyla arayın.</p>
+            </div>
+            <div class="kap-links">
+              <a href="https://www.kap.org.tr/tr/sirketler/ALL" target="_blank" rel="noopener noreferrer">Şirket bildirimlerini aç</a>
+              <a href="https://www.kap.org.tr/tr/kalem-karsilastirma" target="_blank" rel="noopener noreferrer">Finansal tabloları aç</a>
+            </div>
+          </section>
 
           <!-- Loading and no data state -->
           <div class="no-data-card hidden" id="noDataCard" role="status" aria-live="polite" aria-label="Piyasa verisi durumu">
@@ -316,7 +337,7 @@
         </div>
 
         <p class="panel-intro">
-          Güncel başlıklar kaynak bağlantılarıyla gösterilir; ayrıntı için haberi açın.
+          En yeni başlıklar önce gösterilir. Ayrıntıyı görmek için bir habere dokunun.
         </p>
 
         <!-- News items from the RSS endpoint -->
@@ -339,6 +360,7 @@
       </div>
       <div class="footer-right">
         <span class="footer-signature">Batuhan Bayer</span>
+        <a class="footer-email" href="mailto:bayerbatuhan4@gmail.com">bayerbatuhan4@gmail.com</a>
       </div>
     </div>
   </footer>
