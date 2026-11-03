@@ -51,7 +51,10 @@ export default async function handler(request, response) {
           role: message.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: message.content }]
         })),
-        generationConfig: { maxOutputTokens: 650 }
+        generationConfig: {
+          maxOutputTokens: 650,
+          thinkingConfig: { thinkingLevel: 'low' }
+        }
       }),
       signal: AbortSignal.timeout(25000)
     });
