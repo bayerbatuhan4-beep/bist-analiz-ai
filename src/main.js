@@ -863,13 +863,9 @@ async function renderNews(symbol = '') {
       newsListContainer.innerHTML = '<li class="news-state">Bu arama için haber bulunamadı.</li>';
       return;
     }
-    currentNews.forEach(item => {
+    currentNews.forEach((item, index) => {
       const li = document.createElement('li');
       li.className = 'news-item';
-      const details = document.createElement('details');
-      details.className = 'news-details';
-      const summary = document.createElement('summary');
-      summary.className = 'news-summary';
       const meta = document.createElement('div');
       meta.className = 'news-meta-row';
       const source = document.createElement('span');
@@ -887,13 +883,23 @@ async function renderNews(symbol = '') {
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       link.textContent = item.title;
-      const disclosure = document.createElement('span');
-      disclosure.className = 'news-disclosure-hint';
-      disclosure.textContent = 'Ayrıntı ve AI yorumu için dokunun';
-      summary.append(meta, link, disclosure);
-      details.append(summary);
+      const expand = document.createElement('button');
+      expand.type = 'button';
+      expand.className = 'news-expand-btn';
+      expand.textContent = 'Haberi genişlet';
+      expand.setAttribute('aria-expanded', 'false');
       const body = document.createElement('div');
       body.className = 'news-body';
+      body.id = `news-detail-${index}`;
+      body.hidden = true;
+      expand.setAttribute('aria-controls', body.id);
+      expand.addEventListener('click', () => {
+        const opening = body.hidden;
+        body.hidden = !opening;
+        expand.setAttribute('aria-expanded', String(opening));
+        expand.textContent = opening ? 'Haberi kısalt' : 'Haberi genişlet';
+        li.classList.toggle('is-expanded', opening);
+      });
       if (item.description) {
         const description = document.createElement('p');
         description.className = 'news-description';
@@ -919,8 +925,7 @@ async function renderNews(symbol = '') {
       openArticle.textContent = 'Kaynak haberi aç';
       actions.append(ask, openArticle);
       body.append(actions);
-      details.append(body);
-      li.append(details);
+      li.append(meta, link, expand, body);
       newsListContainer.append(li);
     });
   } catch (error) {
