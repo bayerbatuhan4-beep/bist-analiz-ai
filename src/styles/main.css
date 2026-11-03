@@ -1727,6 +1727,23 @@ section[id], .panel[id] {
   transition: all 0.2s ease;
   display: block;
 }
+.news-item[hidden] { display: none; }
+
+.news-more-btn {
+  align-self: center;
+  margin-top: 0.75rem;
+  min-height: 40px;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-glow);
+  color: var(--color-accent);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.news-more-btn:hover, .news-more-btn:focus-visible { filter: brightness(1.12); outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
 .news-expand-btn {
   display: inline-flex;

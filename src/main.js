@@ -854,6 +854,13 @@ function selectStock(code, name) {
 
 async function renderNews(symbol = '') {
   if (!newsListContainer) return;
+  const moreButton = document.getElementById('newsMoreButton');
+  if (moreButton) {
+    moreButton.hidden = true;
+    moreButton.setAttribute('aria-expanded', 'false');
+    moreButton.textContent = 'Daha fazla haber göster';
+    moreButton.onclick = null;
+  }
   newsListContainer.innerHTML = '<li class="news-state">Güncel haberler yükleniyor…</li>';
   try {
     const payload = await getJson(`/api/news${symbol ? `?symbol=${encodeURIComponent(symbol)}` : ''}`);
@@ -866,6 +873,7 @@ async function renderNews(symbol = '') {
     currentNews.forEach((item, index) => {
       const li = document.createElement('li');
       li.className = 'news-item';
+      li.hidden = index >= 4;
       const meta = document.createElement('div');
       meta.className = 'news-meta-row';
       const source = document.createElement('span');
@@ -928,6 +936,17 @@ async function renderNews(symbol = '') {
       li.append(meta, link, expand, body);
       newsListContainer.append(li);
     });
+    const extraItems = [...newsListContainer.querySelectorAll('.news-item')].slice(4);
+    if (moreButton && extraItems.length) {
+      moreButton.hidden = false;
+      moreButton.onclick = () => {
+        const expanded = moreButton.getAttribute('aria-expanded') === 'true';
+        const showAll = !expanded;
+        extraItems.forEach(item => { item.hidden = !showAll; });
+        moreButton.setAttribute('aria-expanded', String(showAll));
+        moreButton.textContent = showAll ? 'Daha az haber göster' : 'Daha fazla haber göster';
+      };
+    }
   } catch (error) {
     currentNews = [];
     newsListContainer.innerHTML = `<li class="news-state">${escapeHtml(error.message)} Haber akışı sonra yeniden denenebilir.</li>`;
