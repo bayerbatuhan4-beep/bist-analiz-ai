@@ -1,22 +1,24 @@
 import {
-  TICKER_ITEMS,
-  DEMO_STOCKS,
-  DEMO_NEWS,
-  SUGGESTED_QUESTIONS,
-  CANNED_AI_RESPONSES,
-  generateDemoCandles
-} from './data/demo.js';
-
-import {
   BIST_STOCKS,
   normalizeTurkish,
   searchStocks
 } from './data/bist-stocks.js';
 
+const QUICK_STOCKS = BIST_STOCKS.slice(0, 20);
+const SUGGESTED_QUESTIONS = [
+  'BIST 100 genel görünümü nasıl?',
+  'Bu hissenin son fiyat hareketi ne gösteriyor?',
+  'Son haberlerin piyasaya olası etkisi nedir?'
+];
+
 // State
 let currentStockKey = 'THYAO';
-let currentTimeframe = '1G';
-let currentViewMode = 'basit'; // 'basit' | 'detayli'
+let currentTimeframe = '1d';
+let currentViewMode = 'basit';
+let currentStock = null;
+let currentNews = [];
+let chatHistory = [];
+let stockRequestId = 0;
 let currentSearchResults = [];
 let activeDropdownIndex = -1;
 
@@ -74,7 +76,7 @@ function setTheme(theme) {
   }
 
   // Re-render chart if already mounted so SVG and canvas states match theme immediately
-  if (svgChartContainer && DEMO_STOCKS[currentStockKey]) {
+  if (svgChartContainer && currentStock) {
     renderActiveChart();
   }
 }
@@ -171,41 +173,55 @@ function initNavLinks() {
   });
 }
 
-/**
- * Render Top Bar Ticker Items (Demo)
- */
-function renderTicker() {
-  if (!tickerContainer) return;
+const TICKER_NAMES = { BIST100: 'BIST 100', BIST30: 'BIST 30', USDTRY: 'USD/TRY' };
 
-  tickerContainer.innerHTML = TICKER_ITEMS.map(item => `
-    <div class="ticker-item" title="${item.name} (Demo Veri)">
-      <span class="ticker-name">${item.name}:</span>
-      <span class="ticker-val">${item.value}</span>
-      <span class="ticker-chg ${item.isUp ? 'up' : 'down'}">
-        ${item.isUp ? '▲' : '▼'} ${item.change}
-      </span>
-    </div>
-  `).join('');
+function formatPrice(value, currency = 'TRY') {
+  return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value) + (currency === 'TRY' ? ' TL' : ` ${currency}`);
+}
+
+function formatChange(value) {
+  if (!Number.isFinite(value)) return '—';
+  return `${value >= 0 ? '+' : ''}%${new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}`;
+}
+
+async function getJson(url, options) {
+  const response = await fetch(url, options);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || `İstek başarısız (${response.status}).`);
+  return payload;
+}
+
+async function renderTicker() {
+  if (!tickerContainer) return;
+  tickerContainer.innerHTML = '<span class="data-loading">Piyasa verisi alınıyor…</span>';
+  try {
+    const { quotes } = await getJson('/api/market?symbols=BIST100%2CBIST30%2CUSDTRY');
+    tickerContainer.innerHTML = quotes.map(item => {
+      if (!Number.isFinite(item.price)) return '';
+      const up = (item.changePercent ?? 0) >= 0;
+      return `<div class="ticker-item"><span class="ticker-name">${TICKER_NAMES[item.symbol]}:</span><span class="ticker-val">${formatPrice(item.price, item.currency || 'TRY')}</span><span class="ticker-chg ${up ? 'up' : 'down'}">${formatChange(item.changePercent)}</span></div>`;
+    }).join('') || '<span class="data-loading">Piyasa verisi şu an kullanılamıyor.</span>';
+  } catch (error) {
+    tickerContainer.innerHTML = `<span class="data-loading">${escapeHtml(error.message)}</span>`;
+  }
 }
 
 /**
- * Render 20 Quick Chips from DEMO_STOCKS
+ * Render quick stock choices from the supported BIST symbols
  */
 function renderChips() {
   if (!chipsList) return;
 
-  const stockKeys = Object.keys(DEMO_STOCKS);
-  chipsList.innerHTML = stockKeys.map(key => {
-    const stock = DEMO_STOCKS[key];
-    const isActive = stock.symbol === currentStockKey;
+  chipsList.innerHTML = QUICK_STOCKS.map(stock => {
+    const isActive = stock.code === currentStockKey;
     return `
       <button 
         type="button" 
         class="chip-button ${isActive ? 'active' : ''}" 
-        data-symbol="${stock.symbol}"
-        title="${stock.symbol} - ${stock.name} (${stock.price})"
+        data-symbol="${stock.code}"
+        title="${stock.code} - ${escapeHtml(stock.name)}"
       >
-        ${stock.symbol}
+        ${stock.code}
       </button>
     `;
   }).join('');
@@ -229,7 +245,7 @@ function updateActiveChip(symbol) {
  * Render Active Chart based on currentViewMode ('basit' vs 'detayli')
  */
 function renderActiveChart() {
-  const stock = DEMO_STOCKS[currentStockKey];
+  const stock = currentStock;
   if (!stock) return;
 
   if (currentViewMode === 'detayli') {
@@ -240,7 +256,7 @@ function renderActiveChart() {
 
   // Update screen reader text summary
   if (chartScreenReaderSummary) {
-    chartScreenReaderSummary.textContent = `${stock.symbol} (${stock.name}) için ${currentTimeframe} dönemine ait ${currentViewMode === 'detayli' ? 'detaylı mum grafiği' : 'çizgi grafiği'}. Son fiyat ${stock.price}, değişim ${stock.change}. Demo veri.`;
+    chartScreenReaderSummary.textContent = `${stock.symbol} (${stock.name}), ${stock.candles.length} fiyat noktası. Son fiyat ${formatPrice(stock.price)}. Veri zamanı ${formatDate(stock.asOf)}.`;
   }
 }
 
@@ -249,77 +265,76 @@ function renderActiveChart() {
  * Shows full demo chart, stats & note if stock has demo data.
  * Shows clear Turkish no-data card if stock has no demo data. Never invents prices.
  */
-function updateStockDisplay(symbolKey, customName) {
+async function updateStockDisplay(symbolKey, customName) {
   if (!symbolKey) return;
+  const requestId = ++stockRequestId;
   const rawKey = symbolKey.trim().toUpperCase();
   currentStockKey = rawKey;
-
-  const demoStock = DEMO_STOCKS[rawKey];
-
-  if (demoStock) {
-    // ----------------- HAS DEMO DATA -----------------
-    if (stockSymbolDisplay) stockSymbolDisplay.textContent = demoStock.symbol;
-    if (stockNameDisplay) stockNameDisplay.textContent = demoStock.name;
-    if (stockDemoBadge) stockDemoBadge.classList.remove('hidden');
-
-    if (stockPriceContainer) stockPriceContainer.classList.remove('hidden');
-    if (stockPriceDisplay) stockPriceDisplay.textContent = demoStock.price;
-    if (stockChangeDisplay) {
-      stockChangeDisplay.className = `stock-change-pill ${demoStock.isUp ? 'up' : 'down'}`;
-      stockChangeDisplay.innerHTML = `
-        <span class="pill-arrow" aria-hidden="true">${demoStock.isUp ? '▲' : '▼'}</span>
-        <span class="pill-text">${demoStock.change}</span>
-      `;
-    }
-    if (stockSectorDisplay) stockSectorDisplay.textContent = demoStock.sector;
-
-    if (chartControlsWrap) chartControlsWrap.classList.remove('hidden');
-    if (timeframeSelector) timeframeSelector.classList.remove('hidden');
-    if (chartViewToggle) chartViewToggle.classList.remove('hidden');
-    if (chartWrapper) chartWrapper.classList.remove('hidden');
-    if (noDataCard) noDataCard.classList.add('hidden');
-
-    if (metricsGrid) metricsGrid.classList.remove('hidden');
-    if (metricHigh) metricHigh.textContent = demoStock.dayHigh;
-    if (metricLow) metricLow.textContent = demoStock.dayLow;
-    if (metricVolume) metricVolume.textContent = demoStock.volume;
-    if (metricPE) metricPE.textContent = demoStock.peRatio;
-
-    if (stockNoteCard) stockNoteCard.classList.remove('hidden');
-    if (stockSummaryText) stockSummaryText.textContent = demoStock.summary;
-
-    updateActiveChip(demoStock.symbol);
-    renderActiveChart();
-
-  } else {
-    // ----------------- NO DEMO DATA -----------------
-    let displayName = customName;
-    if (!displayName) {
-      const found = BIST_STOCKS.find(s => s.code.toUpperCase() === rawKey);
-      displayName = found ? found.name : 'Borsa İstanbul Şirketi';
-    }
-
-    if (stockSymbolDisplay) stockSymbolDisplay.textContent = rawKey;
-    if (stockNameDisplay) stockNameDisplay.textContent = displayName;
-
-    // Never invent prices: hide demo badges, price, timeframe, metrics, and note
-    if (stockDemoBadge) stockDemoBadge.classList.add('hidden');
+  const retainedStock = currentStock?.symbol === rawKey ? currentStock : null;
+  currentStock = retainedStock;
+  const found = BIST_STOCKS.find(s => s.code.toUpperCase() === rawKey);
+  const displayName = customName || found?.name || rawKey;
+  if (stockSymbolDisplay) stockSymbolDisplay.textContent = rawKey;
+  if (stockNameDisplay) stockNameDisplay.textContent = displayName;
+  const status = document.getElementById('noDataText');
+  if (stockDemoBadge) stockDemoBadge.textContent = retainedStock ? 'Piyasa verisi yenileniyor…' : 'Kaynak: Yahoo Finance · gecikmeli olabilir';
+  if (!retainedStock) {
     if (stockPriceContainer) stockPriceContainer.classList.add('hidden');
-    if (timeframeSelector) timeframeSelector.classList.add('hidden');
-
     if (chartWrapper) chartWrapper.classList.add('hidden');
-    if (noDataCard) {
-      noDataCard.classList.remove('hidden');
-      if (noDataStockTitle) {
-        noDataStockTitle.textContent = `${rawKey} - ${displayName}`;
-      }
-    }
-
     if (metricsGrid) metricsGrid.classList.add('hidden');
     if (stockNoteCard) stockNoteCard.classList.add('hidden');
-
-    updateActiveChip(rawKey);
+    if (noDataCard) noDataCard.classList.remove('hidden');
+    if (noDataStockTitle) noDataStockTitle.textContent = `${rawKey} · ${displayName}`;
+    if (status) status.textContent = 'Piyasa verisi alınıyor…';
   }
+  updateActiveChip(rawKey);
+  if (timeframeSelector) timeframeSelector.classList.remove('hidden');
+  if (chartViewToggle) chartViewToggle.classList.remove('hidden');
+  if (chartControlsWrap) chartControlsWrap.classList.remove('hidden');
+  try {
+    const payload = await getJson(`/api/market?symbol=${encodeURIComponent(rawKey)}&timeframe=${encodeURIComponent(currentTimeframe)}`);
+    if (requestId !== stockRequestId) return;
+    currentStock = {
+      ...payload,
+      candles: payload.candles.map(c => ({
+        ...c,
+        label: new Intl.DateTimeFormat('tr-TR', currentTimeframe === '1mo' ? { day: '2-digit', month: '2-digit', timeZone: 'Europe/Istanbul' } : { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' }).format(new Date(c.timestamp)),
+        isUp: c.close >= c.open
+      }))
+    };
+    if (stockNameDisplay) stockNameDisplay.textContent = found?.name || payload.name || displayName;
+    if (stockDemoBadge) stockDemoBadge.textContent = `Kaynak: ${payload.source} · ${formatDate(payload.asOf)}`;
+    if (stockPriceContainer) stockPriceContainer.classList.remove('hidden');
+    if (stockPriceDisplay) stockPriceDisplay.textContent = formatPrice(payload.price, payload.currency);
+    const up = (payload.changePercent ?? 0) >= 0;
+    if (stockChangeDisplay) {
+      stockChangeDisplay.className = `stock-change-pill ${up ? 'up' : 'down'}`;
+      stockChangeDisplay.innerHTML = `<span class="pill-arrow" aria-hidden="true">${up ? '▲' : '▼'}</span><span class="pill-text">${formatChange(payload.changePercent)}</span>`;
+    }
+    if (stockSectorDisplay) stockSectorDisplay.textContent = `Veri zamanı: ${formatDate(payload.asOf)}`;
+    if (metricHigh) metricHigh.textContent = formatPrice(payload.dayHigh, payload.currency);
+    if (metricLow) metricLow.textContent = formatPrice(payload.dayLow, payload.currency);
+    if (metricVolume) metricVolume.textContent = Number(payload.volume).toLocaleString('tr-TR');
+    if (metricPE) metricPE.textContent = Number.isFinite(payload.previousClose) ? formatPrice(payload.previousClose, payload.currency) : '—';
+    if (metricsGrid) metricsGrid.classList.remove('hidden');
+    if (stockNoteCard) stockNoteCard.classList.add('hidden');
+    if (chartWrapper) chartWrapper.classList.remove('hidden');
+    if (noDataCard) noDataCard.classList.add('hidden');
+    renderActiveChart();
+  } catch (error) {
+    if (requestId !== stockRequestId) return;
+    if (retainedStock) {
+      if (stockDemoBadge) stockDemoBadge.textContent = `Güncelleme başarısız · ${formatDate(retainedStock.asOf)}`;
+      return;
+    }
+    if (noDataStockTitle) noDataStockTitle.textContent = `${rawKey} için veri alınamadı`;
+    if (status) status.textContent = `${error.message} Sembolü kontrol edin veya daha sonra tekrar deneyin.`;
+  }
+}
+
+function formatDate(timestamp) {
+  if (!timestamp) return 'zaman bilgisi yok';
+  return new Intl.DateTimeFormat('tr-TR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Istanbul' }).format(new Date(timestamp));
 }
 
 /**
@@ -329,9 +344,10 @@ function updateStockDisplay(symbolKey, customName) {
 function renderSvgChart(stock, timeframe) {
   if (!svgChartContainer) return;
 
-  svgChartContainer.setAttribute('aria-label', `${stock.symbol} ${timeframe} Çizgi Fiyat Grafiği (Demo Veri)`);
+  svgChartContainer.setAttribute('aria-label', `${stock.symbol} ${timeframe} fiyat çizgi grafiği`);
 
-  const series = stock.series[timeframe] || stock.series['1G'];
+  const series = stock.candles.map(c => ({ value: c.close, label: c.label }));
+  if (!series.length) return;
   const values = series.map(d => d.value);
 
   const minVal = Math.min(...values);
@@ -371,7 +387,7 @@ function renderSvgChart(stock, timeframe) {
   const areaPathD = `${linePathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
   // Colors based on trend (CSS Custom Properties)
-  const strokeColor = stock.isUp ? 'var(--color-green)' : 'var(--color-red)';
+  const strokeColor = (stock.changePercent ?? 0) >= 0 ? 'var(--color-green)' : 'var(--color-red)';
 
   // 4 Horizontal Grid Lines
   const gridSteps = 4;
@@ -386,9 +402,10 @@ function renderSvgChart(stock, timeframe) {
   }
 
   // X-axis labels
-  const xLabelsHtml = points.map(pt => `
+  const labelEvery = Math.max(1, Math.ceil(points.length / 8));
+  const xLabelsHtml = points.map((pt, i) => i % labelEvery === 0 || i === points.length - 1 ? `
     <text x="${pt.x.toFixed(1)}" y="${height - 10}" fill="var(--text-muted)" font-size="10" text-anchor="middle" font-family="sans-serif">${pt.label}</text>
-  `).join('');
+  ` : '').join('');
 
   // Interactive Hover Dots
   const dotsHtml = points.map((pt, i) => `
@@ -403,7 +420,7 @@ function renderSvgChart(stock, timeframe) {
       data-index="${i}"
       tabindex="0"
       role="button"
-      aria-label="${pt.label}: ${pt.value.toFixed(2)} TL (Demo Veri)"
+      aria-label="${pt.label}: ${pt.value.toFixed(2)} TL"
     />
   `).join('');
 
@@ -445,7 +462,7 @@ function renderSvgChart(stock, timeframe) {
         chartTooltip.innerHTML = `
           <div class="tooltip-header">
             <span class="tooltip-label">${pt.label}</span>
-            <span class="demo-tag">Demo veri</span>
+            <span class="demo-tag">Yahoo Finance</span>
           </div>
           <div class="tooltip-row">
             <span>Fiyat:</span> <strong>${pt.value.toFixed(2)} TL</strong>
@@ -476,9 +493,10 @@ function renderSvgChart(stock, timeframe) {
 function renderCandleChart(stock, timeframe) {
   if (!svgChartContainer) return;
 
-  svgChartContainer.setAttribute('aria-label', `${stock.symbol} ${timeframe} Detaylı Mum Grafiği (Demo Veri)`);
+  svgChartContainer.setAttribute('aria-label', `${stock.symbol} ${timeframe} detaylı mum grafiği`);
 
-  const candles = (stock.candles && stock.candles[timeframe]) || generateDemoCandles(stock.symbol, stock.rawPrice, timeframe);
+  const candles = stock.candles || [];
+  if (!candles.length) return;
 
   const minLow = Math.min(...candles.map(c => c.low));
   const maxHigh = Math.max(...candles.map(c => c.high));
@@ -535,14 +553,15 @@ function renderCandleChart(stock, timeframe) {
   const maPathD = maPoints.reduce((acc, pt, i) => i === 0 ? `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}` : `${acc} L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '');
 
   // X-axis labels
-  const xLabelsHtml = candles.map((c, i) => `
+  const labelEvery = Math.max(1, Math.ceil(candles.length / 8));
+  const xLabelsHtml = candles.map((c, i) => i % labelEvery === 0 || i === candles.length - 1 ? `
     <text x="${getX(i).toFixed(1)}" y="${height - 10}" fill="var(--text-muted)" font-size="9" text-anchor="middle" font-family="sans-serif">${c.label}</text>
-  `).join('');
+  ` : '').join('');
 
   // Candlesticks and Volume Bars
   const candlesHtml = candles.map((c, i) => {
     const cx = getX(i);
-    const isUp = c.isUp;
+    const isUp = c.close >= c.open;
     const color = isUp ? 'var(--color-green)' : 'var(--color-red)';
     const vColor = isUp ? 'var(--volume-bar-up)' : 'var(--volume-bar-down)';
     const wickY1 = getY(c.high);
@@ -560,7 +579,7 @@ function renderCandleChart(stock, timeframe) {
         data-index="${i}" 
         tabindex="0" 
         role="button" 
-        aria-label="${c.label}: Açılış ${c.open.toFixed(2)} TL, Yüksek ${c.high.toFixed(2)} TL, Düşük ${c.low.toFixed(2)} TL, Kapanış ${c.close.toFixed(2)} TL, Hacim ${c.volume.toLocaleString('tr-TR')} Lot (Demo Veri)"
+        aria-label="${c.label}: Açılış ${c.open.toFixed(2)} TL, Yüksek ${c.high.toFixed(2)} TL, Düşük ${c.low.toFixed(2)} TL, Kapanış ${c.close.toFixed(2)} TL, Hacim ${c.volume.toLocaleString('tr-TR')} Lot"
       >
         <!-- Full-column transparent hitbox for easy hover/touch hit -->
         <rect x="${(cx - candleSpacing / 2).toFixed(1)}" y="${padTop}" width="${candleSpacing.toFixed(1)}" height="${volTop + volHeight - padTop}" fill="transparent" class="candle-hitbox" />
@@ -624,7 +643,7 @@ function renderCandleChart(stock, timeframe) {
       chartTooltip.innerHTML = `
         <div class="tooltip-header">
           <span class="tooltip-label">${c.label}</span>
-          <span class="demo-tag">Demo veri</span>
+          <span class="demo-tag">Yahoo Finance</span>
         </div>
         <div class="tooltip-grid">
           <div class="tooltip-row"><span>Açılış:</span> <strong>${c.open.toFixed(2)} TL</strong></div>
@@ -754,6 +773,7 @@ function updateActiveDropdownHighlight() {
 function selectStock(code, name) {
   if (!code) return;
   updateStockDisplay(code, name);
+  renderNews(code);
   if (stockSearchInput) {
     stockSearchInput.value = '';
   }
@@ -771,48 +791,55 @@ function selectStock(code, name) {
   }
 }
 
-/**
- * Render News List (6 Demo Items - No Images)
- */
-function renderNews() {
+async function renderNews(symbol = '') {
   if (!newsListContainer) return;
-
-  newsListContainer.innerHTML = DEMO_NEWS.map(item => `
-    <li class="news-item">
-      <div class="news-meta-row">
-        <span class="news-category">${item.category}</span>
-        <time class="news-time">${item.time}</time>
-      </div>
-      <p class="news-title">${item.title}</p>
-      <div class="news-actions">
-        <button type="button" class="news-ask-ai-btn" data-news-title="${item.title}" aria-label="Bu haberi yapay zekaya sor">
-          <span>AI'ya Sor</span>
-          <span aria-hidden="true">→</span>
-        </button>
-      </div>
-    </li>
-  `).join('');
-
-  // Attach click listeners to "AI'ya Sor" inside news cards
-  newsListContainer.querySelectorAll('.news-ask-ai-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const title = e.currentTarget.getAttribute('data-news-title');
-      handleUserQuery(`Bu haberin piyasaya etkisi nedir: "${title}"`);
-
-      // Smooth scroll to AI Assistant panel
-      const aiPanel = document.getElementById('ai-asistan');
-      if (aiPanel) {
-        const header = document.querySelector('.top-bar');
-        const headerHeight = header ? header.offsetHeight : 70;
-        const targetTop = aiPanel.getBoundingClientRect().top + window.pageYOffset - headerHeight - 12;
-        window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
-        aiPanel.classList.remove('panel-highlight');
-        void aiPanel.offsetWidth;
-        aiPanel.classList.add('panel-highlight');
-        setTimeout(() => aiPanel.classList.remove('panel-highlight'), 1500);
-      }
+  newsListContainer.innerHTML = '<li class="news-state">Güncel haberler yükleniyor…</li>';
+  try {
+    const payload = await getJson(`/api/news${symbol ? `?symbol=${encodeURIComponent(symbol)}` : ''}`);
+    currentNews = payload.items || [];
+    newsListContainer.replaceChildren();
+    if (!currentNews.length) {
+      newsListContainer.innerHTML = '<li class="news-state">Bu arama için haber bulunamadı.</li>';
+      return;
+    }
+    currentNews.forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'news-item';
+      const meta = document.createElement('div');
+      meta.className = 'news-meta-row';
+      const source = document.createElement('span');
+      source.className = 'news-category';
+      source.textContent = item.source;
+      const time = document.createElement('time');
+      time.className = 'news-time';
+      time.dateTime = item.publishedAt || '';
+      time.textContent = item.publishedAt ? formatDate(item.publishedAt) : 'Yayın zamanı yok';
+      meta.append(source, time);
+      const link = document.createElement('a');
+      link.className = 'news-title';
+      link.href = item.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = item.title;
+      const actions = document.createElement('div');
+      actions.className = 'news-actions';
+      const ask = document.createElement('button');
+      ask.type = 'button';
+      ask.className = 'news-ask-ai-btn';
+      ask.textContent = "Bu haberi AI'ya sor";
+      ask.addEventListener('click', () => {
+        handleUserQuery('Bu haberin olası piyasa etkisini, mevcut verilerle sınırlı kalarak açıklar mısın?', { news: [item] });
+        const panel = document.getElementById('ai-asistan');
+        panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      actions.append(ask);
+      li.append(meta, link, actions);
+      newsListContainer.append(li);
     });
-  });
+  } catch (error) {
+    currentNews = [];
+    newsListContainer.innerHTML = `<li class="news-state">${escapeHtml(error.message)} Haber akışı sonra yeniden denenebilir.</li>`;
+  }
 }
 
 /**
@@ -856,69 +883,50 @@ function isGreeting(text) {
   return greetingWords.some(w => clean === w || clean.startsWith(w + ' ') || clean.endsWith(' ' + w) || clean.includes(' ' + w + ' '));
 }
 
-/**
- * Match a canned response based on input query
- */
-function getCannedResponse(query) {
-  const q = query.toLowerCase().trim();
 
-  // 1. Check for greetings
-  if (isGreeting(q)) {
-    return CANNED_AI_RESPONSES.greeting;
-  }
 
-  // 2. Check for specific stocks in DEMO_STOCKS
-  for (const symbolKey of Object.keys(DEMO_STOCKS)) {
-    const stock = DEMO_STOCKS[symbolKey];
-    const lowerSymbol = symbolKey.toLowerCase();
-    const lowerName = stock.name.toLowerCase();
-
-    if (q.includes(lowerSymbol) || q.includes(lowerName)) {
-      if (CANNED_AI_RESPONSES[lowerSymbol]) {
-        return CANNED_AI_RESPONSES[lowerSymbol];
-      }
-      return `Demo yanıt: ${stock.symbol} (${stock.name}) hissesi demo portföyümüzde incelenmektedir. Şirket özeti: ${stock.summary}`;
-    }
-  }
-
-  // 3. Check for general market / BIST 100 keywords
-  if (q.includes('bist') || q.includes('endeks') || q.includes('piyasa') || q.includes('borsa')) {
-    return CANNED_AI_RESPONSES.bist100;
-  }
-
-  // 4. Check for macro / news keywords
-  if (q.includes('gelişme') || q.includes('gelisme') || q.includes('haber') || q.includes('tcmb') || q.includes('faiz') || q.includes('enflasyon')) {
-    return CANNED_AI_RESPONSES.gelismeler;
-  }
-
-  // 5. Friendly fallback when question matches nothing
-  return CANNED_AI_RESPONSES.fallback;
-}
-
-/**
- * Handle User Query in AI Assistant
- */
-function handleUserQuery(questionText) {
+async function handleUserQuery(questionText, extraContext = {}) {
   if (!questionText || !questionText.trim()) return;
   const cleanQuestion = questionText.trim();
-
   appendChatMessage('user', cleanQuestion);
+  chatHistory.push({ role: 'user', content: cleanQuestion });
+  const submitButton = document.getElementById('aiSubmitButton');
+  if (submitButton) submitButton.disabled = true;
+  appendChatMessage('assistant', 'Güncel piyasa ve haber bağlamı inceleniyor…', true);
+  try {
+    const context = {
+      stock: currentStock ? { symbol: currentStock.symbol, name: currentStock.name, price: currentStock.price, currency: currentStock.currency, changePercent: currentStock.changePercent, asOf: currentStock.asOf } : null,
+      news: extraContext.news || currentNews.slice(0, 5)
+    };
+    const payload = await getJson('/api/assistant', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question: cleanQuestion, context, history: chatHistory.slice(-8, -1) })
+    });
+    removePendingMessage();
+    appendChatMessage('assistant', payload.answer);
+    chatHistory.push({ role: 'assistant', content: payload.answer });
+    chatHistory = chatHistory.slice(-12);
+  } catch (error) {
+    removePendingMessage();
+    appendChatMessage('assistant', error.message);
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
+}
 
-  const answerText = getCannedResponse(cleanQuestion);
-
-  setTimeout(() => {
-    appendChatMessage('assistant', answerText);
-  }, 200);
+function removePendingMessage() {
+  chatContainer?.querySelector('.pending-message')?.remove();
 }
 
 /**
  * Append Message to Chat Container
  */
-function appendChatMessage(sender, text) {
+function appendChatMessage(sender, text, pending = false) {
   if (!chatContainer) return;
 
   const messageDiv = document.createElement('div');
-  messageDiv.className = `chat-message ${sender === 'user' ? 'user-message' : 'assistant-message'}`;
+  messageDiv.className = `chat-message ${sender === 'user' ? 'user-message' : 'assistant-message'}${pending ? ' pending-message' : ''}`;
 
   if (sender === 'user') {
     messageDiv.innerHTML = `
@@ -931,7 +939,7 @@ function appendChatMessage(sender, text) {
     messageDiv.innerHTML = `
       <div class="message-meta">
         <span class="sender-name">BIST AI Asistanı</span>
-        <span class="demo-tag">Demo yanıt</span>
+        <span class="demo-tag">OpenAI yanıtı</span>
       </div>
       <p class="message-text">${escapeHtml(text)}</p>
     `;
@@ -1005,7 +1013,7 @@ function initEventListeners() {
       timeframeButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentTimeframe = btn.getAttribute('data-timeframe');
-      renderActiveChart();
+      updateStockDisplay(currentStockKey);
     });
   });
 
@@ -1092,14 +1100,8 @@ function initEventListeners() {
         }
       }
 
-      // 2. Check exact code match in DEMO_STOCKS or BIST_STOCKS
+      // 2. Check exact code match in the supported BIST symbol list
       const norm = normalizeTurkish(query);
-      const exactDemoKey = Object.keys(DEMO_STOCKS).find(k => normalizeTurkish(k) === norm);
-      if (exactDemoKey) {
-        selectStock(exactDemoKey, DEMO_STOCKS[exactDemoKey].name);
-        return;
-      }
-
       const exactStock = BIST_STOCKS.find(s => normalizeTurkish(s.code) === norm);
       if (exactStock) {
         selectStock(exactStock.code, exactStock.name);
@@ -1127,10 +1129,15 @@ function initApp() {
   initThemeSwitcher();
   renderTicker();
   renderChips();
-  renderNews();
+  renderNews(currentStockKey);
   renderSuggestedQuestions();
   updateStockDisplay(currentStockKey);
   initEventListeners();
+  window.setInterval(() => {
+    renderTicker();
+    updateStockDisplay(currentStockKey);
+    renderNews(currentStockKey);
+  }, 5 * 60 * 1000);
 }
 
 // Run when DOM is ready

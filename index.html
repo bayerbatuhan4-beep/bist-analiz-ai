@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="BIST Analiz AI: Borsa İstanbul yatırımcıları ve öğrenciler için piyasa özeti, hisse grafiği, güncel haberler ve yapay zeka piyasa asistanı sunan demo finans paneli.">
+  <meta name="description" content="BIST Analiz AI: gecikmeli piyasa verisi, kaynak bağlantılı haberler ve OpenAI destekli piyasa asistanı.">
   <meta name="theme-color" content="#0B1426">
   <title>BIST Analiz AI - Borsa İstanbul Piyasa ve Yapay Zeka Paneli</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -38,10 +38,10 @@
       </div>
 
       <!-- Ticker Summary -->
-      <div class="ticker-bar" aria-label="Piyasa Özet Demo Verileri">
-        <span class="demo-badge">Demo veri</span>
+      <div class="ticker-bar" aria-label="Piyasa özeti">
+        <span class="data-source-badge">Gecikmeli veri</span>
         <div class="ticker-items" id="tickerItemsContainer">
-          <!-- Populated dynamically from demo.js -->
+          <!-- Loaded from the market-data function -->
         </div>
       </div>
 
@@ -79,18 +79,18 @@
             </div>
             <h2 id="ai-panel-heading" class="panel-title">BIST AI Asistanı</h2>
           </div>
-          <span class="demo-badge">Demo veri</span>
+          <span class="data-source-badge">OpenAI</span>
         </div>
 
         <p class="panel-intro">
-          Borsa İstanbul piyasa verilerini ve hisseleri yorumlayan yapay zeka asistanı.
+          Güncel fiyat ve haber bağlamını kullanarak sorularını yanıtlar. Yatırım tavsiyesi vermez.
         </p>
 
         <!-- Suggested Questions -->
         <div class="suggested-section">
           <span class="suggested-label">Örnek Sorular:</span>
           <div class="suggested-buttons" id="suggestedButtonsContainer">
-            <!-- Populated from demo.js -->
+            <!-- Quick questions are initialized in main.js -->
           </div>
         </div>
 
@@ -99,7 +99,7 @@
           <div class="chat-message assistant-message">
             <div class="message-meta">
               <span class="sender-name">Asistan</span>
-              <span class="demo-tag">Demo yanıt</span>
+              <span class="demo-tag">Asistan</span>
             </div>
             <p class="message-text">
               Merhaba! Borsa İstanbul endeksleri, şirketler ve piyasa gelişmeleri hakkında sorularınızı yanıtlamak için hazırım. Yukarıdaki örnek sorulardan birini seçebilir veya kendi sorunuzu yazabilirsiniz.
@@ -171,10 +171,10 @@
           <div class="chips-container" role="group" aria-label="Hızlı Hisse Seçimi">
             <div class="chips-header-row">
               <span class="chips-title">Hızlı Hisse Seçimi (20 BIST Hissesi):</span>
-              <span class="demo-badge">Demo veri</span>
+              <span class="data-source-badge">Yahoo Finance verisi</span>
             </div>
             <div class="chips-list" id="chipsList">
-              <!-- Dynamically populated from demo.js -->
+              <!-- Populated from the supported stock list -->
             </div>
           </div>
         </div>
@@ -188,15 +188,15 @@
                   <span id="stockSymbolDisplay">THYAO</span>
                   <span class="stock-name-subtitle" id="stockNameDisplay">Türk Hava Yolları A.O.</span>
                 </h2>
-                <span class="demo-badge" id="stockDemoBadge">Demo veri</span>
+                <span class="data-source-badge" id="stockDemoBadge">Piyasa verisi yükleniyor…</span>
               </div>
               <div class="stock-price-display" id="stockPriceContainer">
-                <span class="stock-price-main" id="stockPriceDisplay">288,50 TL</span>
+                <span class="stock-price-main" id="stockPriceDisplay">—</span>
                 <span class="stock-change-pill up" id="stockChangeDisplay">
                   <span class="pill-arrow" aria-hidden="true">&#9650;</span>
-                  <span class="pill-text">+%2,30</span>
+                  <span class="pill-text">—</span>
                 </span>
-                <span class="stock-sector-tag" id="stockSectorDisplay">Havacılık / Ulaştırma</span>
+                <span class="stock-sector-tag" id="stockSectorDisplay">Veri bekleniyor</span>
               </div>
             </div>
 
@@ -210,26 +210,26 @@
 
               <!-- Timeframe selector -->
               <div class="timeframe-selector" id="timeframeSelector" role="group" aria-label="Zaman Aralığı Seçimi">
-                <button type="button" class="timeframe-btn active" data-timeframe="1G">1G</button>
-                <button type="button" class="timeframe-btn" data-timeframe="1H">1H</button>
-                <button type="button" class="timeframe-btn" data-timeframe="1A">1A</button>
+                <button type="button" class="timeframe-btn active" data-timeframe="1d" aria-label="1 gün">1G</button>
+                <button type="button" class="timeframe-btn" data-timeframe="5d" aria-label="1 hafta">1H</button>
+                <button type="button" class="timeframe-btn" data-timeframe="1mo" aria-label="1 ay">1A</button>
               </div>
             </div>
           </div>
 
           <!-- Interactive SVG Chart Area -->
           <div class="chart-wrapper" id="chartWrapper">
-            <div class="chart-canvas-area" id="svgChartContainer" role="img" aria-label="Hisse Fiyat Grafiği Demo">
+            <div class="chart-canvas-area" id="svgChartContainer" role="img" aria-label="Hisse fiyat grafiği">
               <!-- SVG chart rendered via JavaScript -->
             </div>
             <div class="chart-screen-reader-summary visually-hidden" id="chartScreenReaderSummary" aria-live="polite">
-              THYAO için 1G çizgi grafiği. Son fiyat 288,50 TL. Demo veri.
+              Seçili hisse için piyasa verisi yükleniyor.
             </div>
             <div class="chart-tooltip" id="chartTooltip" aria-hidden="true"></div>
           </div>
 
-          <!-- No Data State Card (shown when stock has no demo data) -->
-          <div class="no-data-card hidden" id="noDataCard" role="region" aria-label="Veri Bulunamadı Bilgisi" data-message="Bu hisse icin henuz veri yok. Gercek fiyat verisi sonraki surumde eklenecek.">
+          <!-- Loading and no data state -->
+          <div class="no-data-card hidden" id="noDataCard" role="status" aria-live="polite" aria-label="Piyasa verisi durumu">
             <div class="no-data-icon" aria-hidden="true">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -238,31 +238,30 @@
               </svg>
             </div>
             <h3 class="no-data-title" id="noDataStockTitle">SASA - SASA Polyester Sanayi A.Ş.</h3>
-            <p class="no-data-text" id="noDataText">Bu hisse için henüz veri yok. Gerçek fiyat verisi sonraki sürümde eklenecek.</p>
-            <p class="no-data-text-ascii visually-hidden" aria-hidden="true">Bu hisse icin henuz veri yok. Gercek fiyat verisi sonraki surumde eklenecek.</p>
+            <p class="no-data-text" id="noDataText">Piyasa verisi alınıyor…</p>
           </div>
 
           <!-- Stock Summary Metrics -->
-          <div class="metrics-grid" id="metricsGrid" aria-label="Hisse Özet Demo İstatistikleri">
+          <div class="metrics-grid" id="metricsGrid" aria-label="Piyasa fiyat özeti">
             <div class="metric-card">
               <span class="metric-label">Gün İçi En Yüksek</span>
-              <span class="metric-value" id="metricHigh">291,00 TL</span>
-              <span class="metric-demo">Demo veri</span>
+              <span class="metric-value" id="metricHigh">—</span>
+              <span class="metric-demo">Yahoo Finance</span>
             </div>
             <div class="metric-card">
               <span class="metric-label">Gün İçi En Düşük</span>
-              <span class="metric-value" id="metricLow">282,25 TL</span>
-              <span class="metric-demo">Demo veri</span>
+              <span class="metric-value" id="metricLow">—</span>
+              <span class="metric-demo">Yahoo Finance</span>
             </div>
             <div class="metric-card">
               <span class="metric-label">İşlem Hacmi</span>
-              <span class="metric-value" id="metricVolume">4,82 Mr TL</span>
-              <span class="metric-demo">Demo veri</span>
+              <span class="metric-value" id="metricVolume">—</span>
+              <span class="metric-demo">Yahoo Finance</span>
             </div>
             <div class="metric-card">
-              <span class="metric-label">F/K Oranı</span>
-              <span class="metric-value" id="metricPE">4,12</span>
-              <span class="metric-demo">Demo veri</span>
+              <span class="metric-label">Önceki kapanış</span>
+              <span class="metric-value" id="metricPE">—</span>
+              <span class="metric-demo">Yahoo Finance</span>
             </div>
           </div>
 
@@ -270,10 +269,10 @@
           <div class="stock-note-card" id="stockNoteCard">
             <div class="note-header">
               <span class="note-title">Şirket Değerlendirme Notu</span>
-              <span class="demo-badge">Demo veri</span>
+              <span class="data-source-badge">Fiyat sağlayıcısı</span>
             </div>
             <p class="note-text" id="stockSummaryText">
-              Yolcu doluluk oranları ve güçlü kargo hacmiyle BIST 30 endeksinde güçlü işlem hacmini sürdüren havacılık devi.
+              Seçili hisseye ait piyasa özeti burada gösterilir.
             </p>
           </div>
         </article>
@@ -293,17 +292,17 @@
             </div>
             <h2 id="news-panel-heading" class="panel-title">Haberler ve Analizler</h2>
           </div>
-          <span class="demo-badge">Demo veri</span>
+          <span class="data-source-badge">Google News RSS</span>
         </div>
 
         <p class="panel-intro">
-          Piyasayı ve şirketleri etkileyen en son finansal gelişmeler.
+          Güncel başlıklar kaynak bağlantılarıyla gösterilir; ayrıntı için haberi açın.
         </p>
 
-        <!-- 6 Demo News Items (No Images) -->
+        <!-- News items from the RSS endpoint -->
         <div class="news-list-wrapper">
           <ul class="news-list" id="newsListContainer" aria-label="Haber Listesi">
-            <!-- Populated dynamically from demo.js -->
+            <!-- Loaded from the RSS news function -->
           </ul>
         </div>
       </section>
@@ -316,7 +315,7 @@
     <div class="footer-container">
       <div class="footer-left">
         <p class="footer-disclaimer">Yatırım tavsiyesi değildir.</p>
-        <p class="footer-subtext">Bu platformdaki tüm veriler, grafikler ve analizler eğitim ve demo amaçlıdır.</p>
+        <p class="footer-subtext">Piyasa verisi gecikmeli ve Yahoo Finance kaynaklıdır. Haber bağlantılarını açarak kaynağı doğrulayın. Yatırım tavsiyesi değildir.</p>
       </div>
       <div class="footer-right">
         <span class="footer-signature">Batuhan Bayer</span>

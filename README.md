@@ -2,7 +2,7 @@
 
 
 
-Borsa İstanbul (BIST) için hazırlanmış, grafik, haber ve yapay zeka asistanı bir arada sunan panel tarzı bir web sitesi. YZO 205 Operasyonel Yapay Zeka dersi Assignment-1 çalışmasıdır.
+Borsa İstanbul için gecikmeli fiyat grafikleri, kaynak bağlantılı haberler ve OpenAI destekli bir asistan sunan Vite/Vercel paneli.
 
 
 
@@ -12,7 +12,7 @@ Borsa İstanbul (BIST) için hazırlanmış, grafik, haber ve yapay zeka asistan
 
 
 
-> \*\*Önemli:\*\* Sitedeki fiyatlar, grafikler, haberler ve yapay zeka yanıtları şu an \*\*DEMO verisidir\*\*; gerçek piyasa verisi değildir ve yatırım tavsiyesi değildir. Demo olan her alanda "Demo veri" etiketi bulunur.
+> Piyasa fiyatları Yahoo Finance'in resmî olmayan uç noktasından gelir ve gecikmeli olabilir. Haberler Google News RSS üzerinden alınır. Bu site yatırım tavsiyesi değildir.
 
 
 
@@ -20,7 +20,7 @@ Borsa İstanbul (BIST) için hazırlanmış, grafik, haber ve yapay zeka asistan
 
 
 
-Borsa İstanbul'u takip etmek isteyenlere tek ekranda hisse grafiği, piyasa haberleri ve soru sorulabilen bir asistan sunmak. Gerçek veri ve gerçek yapay zeka yorumu sonraki sürümlerde eklenecektir.
+Borsa İstanbul'u takip etmek isteyenlere tek ekranda fiyat grafiği, kaynaklı haber ve veri bağlamıyla çalışan bir asistan sunmak.
 
 
 
@@ -44,7 +44,7 @@ Borsa İstanbul'u öğrenmek ve takip etmek isteyen bireysel yatırımcı adayla
 
 \- Üç renk teması: Lacivert, Altın, Açık (seçim tarayıcıda hatırlanır)
 
-\- Yapay zeka asistanı paneli (şu an hazır cevaplı demo)
+\- OpenAI Responses API ile çalışan piyasa asistanı (sunucu tarafında API anahtarı gerekir)
 
 \- Mobil uyumlu düzen, klavye ile erişilebilirlik
 
@@ -62,7 +62,7 @@ Google Antigravity CLI (Gemini 3.8 Flash). Dağıtım iş akışı için depoda 
 
 
 
-HTML, CSS, JavaScript (Vite). Grafikler saf SVG ile çizilir. Sunucu tarafı yoktur. Git, GitHub ve Vercel ile yayınlanır.
+HTML, CSS, JavaScript (Vite). Grafikler SVG ile çizilir. Piyasa, haber ve AI istekleri Vercel Functions üzerinden sunulur.
 
 
 
@@ -74,7 +74,7 @@ HTML, CSS, JavaScript (Vite). Grafikler saf SVG ile çizilir. Sunucu tarafı yok
 
 npm install
 
-npm run dev
+npx vercel dev
 
 npm run build
 
@@ -82,7 +82,7 @@ npm run build
 
 
 
-`npm run dev` komutu yerel adresi (ör. http://localhost:3000) yazdırır.
+`npx vercel dev` komutu arayüzü ve api/ uç noktalarını birlikte çalıştırır. OpenAI için yerelde OPENAI_API_KEY ortam değişkenini tanımlayın.
 
 
 
