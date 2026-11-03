@@ -897,9 +897,17 @@ function findMentionedStocks(question) {
     const uniqueNameTokens = new Set(normalizeTurkish(stock.name).split(' ').filter(token => token.length >= 3 && !STOCK_NAME_STOP_WORDS.has(token)));
     for (const token of uniqueNameTokens) tokenFrequency.set(token, (tokenFrequency.get(token) || 0) + 1);
   }
-  return BIST_STOCKS.filter(stock => normalizeTurkish(stock.name).split(' ').some(token =>
+  const nameMatches = BIST_STOCKS.filter(stock => normalizeTurkish(stock.name).split(' ').some(token =>
     token.length >= 3 && !STOCK_NAME_STOP_WORDS.has(token) && tokenFrequency.get(token) === 1 && tokens.has(token)
   )).slice(0, 3);
+  if (nameMatches.length) return nameMatches;
+
+  // The Yahoo endpoint also resolves valid BIST tickers outside our autocomplete catalogue.
+  const ignoredCodes = new Set(['BIST', 'BIST30', 'BIST100', 'API', 'JSON', 'USD', 'TRY', 'TL', 'KAP']);
+  const typedCodes = [...question.matchAll(/(?:^|[^A-Z0-9])([A-Z][A-Z0-9]{2,5})(?=$|[^A-Z0-9])/g)]
+    .map(match => match[1])
+    .filter((code, index, all) => !ignoredCodes.has(code) && all.indexOf(code) === index);
+  return typedCodes.slice(0, 3).map(code => BIST_STOCKS.find(stock => stock.code === code) || { code, name: code });
 }
 async function handleUserQuery(questionText, extraContext = {}) {
   if (!questionText || !questionText.trim()) return;
