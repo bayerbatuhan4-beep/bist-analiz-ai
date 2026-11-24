@@ -36,7 +36,8 @@ export default {
         method: request.method,
         headers: Object.fromEntries(request.headers.entries()),
         query: Object.fromEntries(url.searchParams.entries()),
-        body
+        body,
+        env
       };
       const mockRes = createMockRes();
       await handler(mockReq, mockRes);
@@ -46,3 +47,4 @@ export default {
     return env.ASSETS.fetch(request);
   }
 };
+
