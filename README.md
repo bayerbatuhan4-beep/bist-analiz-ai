@@ -1,72 +1,76 @@
-# Piyasa Pusulası
+﻿## Canli Yayin Linkleri
+- **Cloudflare Workers (Birincil):** 
+- **Vercel (Yedek):** https://bist-analiz-ai.vercel.app
+
+# Piyasa PusulasÄ±
 
 
 
-Borsa İstanbul için gecikmeli fiyat grafikleri, kaynak bağlantılı haberler ve Gemini destekli asistan sunan Piyasa Pusulası.
+Borsa Ä°stanbul iÃ§in gecikmeli fiyat grafikleri, kaynak baÄŸlantÄ±lÄ± haberler ve Gemini destekli asistan sunan Piyasa PusulasÄ±.
 
 
 
-\*\*Canlı site (production):\*\* https://bist-analiz-ai.vercel.app
+\*\*CanlÄ± site (production):\*\* https://bist-analiz-ai.vercel.app
 
 \*\*GitHub:\*\* https://github.com/bayerbatuhan4-beep/bist-analiz-ai
 
 
 
-> Piyasa fiyatları Yahoo Finance'in resmî olmayan uç noktasından gelir ve gecikmeli olabilir. Haberler Google News RSS üzerinden alınır. Bu site yatırım tavsiyesi değildir.
+> Piyasa fiyatlarÄ± Yahoo Finance'in resmÃ® olmayan uÃ§ noktasÄ±ndan gelir ve gecikmeli olabilir. Haberler Google News RSS Ã¼zerinden alÄ±nÄ±r. Bu site yatÄ±rÄ±m tavsiyesi deÄŸildir.
 
 
 
-\## Amaç
+\## AmaÃ§
 
 
 
-Borsa İstanbul'u takip etmek isteyenlere tek ekranda fiyat grafiği, kaynaklı haber ve veri bağlamıyla çalışan bir asistan sunmak.
+Borsa Ä°stanbul'u takip etmek isteyenlere tek ekranda fiyat grafiÄŸi, kaynaklÄ± haber ve veri baÄŸlamÄ±yla Ã§alÄ±ÅŸan bir asistan sunmak.
 
 
 
-\## Hedef kullanıcı
+\## Hedef kullanÄ±cÄ±
 
 
 
-Borsa İstanbul'u öğrenmek ve takip etmek isteyen bireysel yatırımcı adayları ve öğrenciler.
+Borsa Ä°stanbul'u Ã¶ÄŸrenmek ve takip etmek isteyen bireysel yatÄ±rÄ±mcÄ± adaylarÄ± ve Ã¶ÄŸrenciler.
 
 
 
-\## Özellikler
+\## Ã–zellikler
 
 
 
-\- Şirket adı veya koduyla hisse arama (Türkçe karakter duyarlı: "bim" yazınca BIMAS bulunur)
+\- Åirket adÄ± veya koduyla hisse arama (TÃ¼rkÃ§e karakter duyarlÄ±: "bim" yazÄ±nca BIMAS bulunur)
 
-\- 20 popüler hisse için hızlı seçim
+\- 20 popÃ¼ler hisse iÃ§in hÄ±zlÄ± seÃ§im
 
-\- \*\*Basit\*\* (çizgi) ve \*\*Detaylı\*\* (mum grafiği, hacim, hareketli ortalama, ayrıntı kutusu) grafik görünümü
+\- \*\*Basit\*\* (Ã§izgi) ve \*\*DetaylÄ±\*\* (mum grafiÄŸi, hacim, hareketli ortalama, ayrÄ±ntÄ± kutusu) grafik gÃ¶rÃ¼nÃ¼mÃ¼
 
-\- Üç renk teması: Lacivert, Altın, Açık (seçim tarayıcıda hatırlanır)
+\- ÃœÃ§ renk temasÄ±: Lacivert, AltÄ±n, AÃ§Ä±k (seÃ§im tarayÄ±cÄ±da hatÄ±rlanÄ±r)
 
-\- Gemini API ile çalışan piyasa asistanı (sunucu tarafında API anahtarı gerekir)
+\- Gemini API ile Ã§alÄ±ÅŸan piyasa asistanÄ± (sunucu tarafÄ±nda API anahtarÄ± gerekir)
 
-\- Mobil uyumlu düzen, klavye ile erişilebilirlik
-
-
-
-\## Kullanılan AI coding agent
+\- Mobil uyumlu dÃ¼zen, klavye ile eriÅŸilebilirlik
 
 
 
-Google Antigravity CLI (Gemini 3.8 Flash). Dağıtım iş akışı için depoda `.agents/skills/vercel-web-deployment/SKILL.md` dosyası bulunur.
+\## KullanÄ±lan AI coding agent
 
 
 
-\## Kullanılan teknolojiler
+Google Antigravity CLI (Gemini 3.8 Flash). DaÄŸÄ±tÄ±m iÅŸ akÄ±ÅŸÄ± iÃ§in depoda `.agents/skills/vercel-web-deployment/SKILL.md` dosyasÄ± bulunur.
 
 
 
-HTML, CSS, JavaScript (Vite). Grafikler SVG ile çizilir. Piyasa, haber ve AI istekleri Vercel Functions üzerinden sunulur.
+\## KullanÄ±lan teknolojiler
 
 
 
-\## Local çalıştırma
+HTML, CSS, JavaScript (Vite). Grafikler SVG ile Ã§izilir. Piyasa, haber ve AI istekleri Vercel Functions Ã¼zerinden sunulur.
+
+
+
+\## Local Ã§alÄ±ÅŸtÄ±rma
 
 
 
@@ -82,13 +86,14 @@ npm run build
 
 
 
-`npx vercel dev` komutu arayüzü ve api/ uç noktalarını birlikte çalıştırır. Gemini için yerelde GEMINI_API_KEY ortam değişkenini tanımlayın.
+`npx vercel dev` komutu arayÃ¼zÃ¼ ve api/ uÃ§ noktalarÄ±nÄ± birlikte Ã§alÄ±ÅŸtÄ±rÄ±r. Gemini iÃ§in yerelde GEMINI_API_KEY ortam deÄŸiÅŸkenini tanÄ±mlayÄ±n.
 
 
 
-\## Yayınlama akışı
+\## YayÄ±nlama akÄ±ÅŸÄ±
 
 
 
-Yerel değişiklik → `git commit` → `git push` (main) → Vercel otomatik build ve production deployment.
+Yerel deÄŸiÅŸiklik â†’ `git commit` â†’ `git push` (main) â†’ Vercel otomatik build ve production deployment.
+
 
