@@ -24,8 +24,8 @@ export default async function handler(request, response) {
   if (request.method !== 'POST') return response.status(405).json({ error: 'YalnÄ±zca POST desteklenir.' });
   const ip = String(request.headers['x-forwarded-for'] || 'unknown').split(',')[0].trim();
   if (!allowRequest(ip)) return response.status(429).json({ error: 'Ã‡ok fazla istek gÃ¶nderildi. BirkaÃ§ dakika sonra tekrar deneyin.' });
-  const apiKey = (request.env?.GEMINI_API_KEY || process.env?.GEMINI_API_KEY);
-  if (!apiKey) return response.status(503).json({ error: 'AI servisi henÃ¼z yapÄ±landÄ±rÄ±lmadÄ±. Vercelâ€™de GEMINI_API_KEY tanÄ±mlanmalÄ±.' });
+  const apiKey = request.env?.GEMINI_API_KEY || globalThis.process?.env?.GEMINI_API_KEY;
+  if (!apiKey) return response.status(503).json({ error: 'AI servisi henÃ¼z yapÄ±landÄ±rÄ±lmadÄ±. Cloudflare GEMINI_API_KEY bulunamadi.' });
   const { question, context = {}, history = [] } = request.body || {};
   if (typeof question !== 'string' || !question.trim() || question.length > 1500) {
     return response.status(400).json({ error: 'Soru boÅŸ olamaz ve 1.500 karakteri geÃ§emez.' });
@@ -139,4 +139,5 @@ export default async function handler(request, response) {
     return response.status(502).json({ error: error.name === 'TimeoutError' ? 'Gemini yanÄ±t vermek iÃ§in zaman aÅŸÄ±mÄ±na uÄŸradÄ±. Biraz sonra tekrar deneyin.' : 'AI servisine ulaÅŸÄ±lamadÄ±.' });
   }
 }
+
 
