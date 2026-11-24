@@ -1,6 +1,8 @@
-﻿## Canli Yayin Linkleri
+﻿## Canlı Yayın Linkleri
 - **Cloudflare Workers (Birincil):** https://bist-analiz-ai.bayerbatuhan4.workers.dev/
 - **Vercel (Yedek):** https://bist-analiz-ai.vercel.app
+
+---
 
 ## Canli Yayin Linkleri
 - **Cloudflare Workers (Birincil):** https://bist-analiz-ai.<senin-subdomainin>.workers.dev
