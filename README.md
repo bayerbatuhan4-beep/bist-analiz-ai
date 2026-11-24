@@ -1,4 +1,8 @@
 ﻿## Canli Yayin Linkleri
+- **Cloudflare Workers (Birincil):** bist-analiz-ai.bayerbatuhan4.workers.dev
+- **Vercel (Yedek):** https://bist-analiz-ai.vercel.app
+
+## Canli Yayin Linkleri
 - **Cloudflare Workers (Birincil):** 
 - **Vercel (Yedek):** https://bist-analiz-ai.vercel.app
 
@@ -95,5 +99,6 @@ npm run build
 
 
 Yerel deÄŸiÅŸiklik â†’ `git commit` â†’ `git push` (main) â†’ Vercel otomatik build ve production deployment.
+
 
 
