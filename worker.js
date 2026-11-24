@@ -16,9 +16,6 @@ function createMockRes() {
 
 export default {
   async fetch(request, env) {
-    globalThis.process = globalThis.process || { env: {} };
-    globalThis.process.env = { ...globalThis.process.env, ...env };
-
     const url = new URL(request.url);
     const routes = {
       '/api/assistant': assistantHandler,
@@ -47,4 +44,3 @@ export default {
     return env.ASSETS.fetch(request);
   }
 };
-
